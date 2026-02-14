@@ -137,7 +137,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const APP_VERSION = "6.0.0 - Video playback fixed"; 
+        const APP_VERSION = "6.1.0 - Features Restored"; 
 
         const firebaseConfig = {
             apiKey: "AIzaSyDcWSyP6S7LDuGQ1ZjFqKAHCZ8mjwJhEKY",
@@ -174,10 +174,19 @@
         };
 
         const ACCENT_COLORS = { blue: { hex: '#2563eb' }, purple: { hex: '#9333ea' }, green: { hex: '#16a34a' }, orange: { hex: '#ea580c' }, red: { hex: '#dc2626' } };
-        const THEMES = { amoled: { bg: 'bg-black', text: 'text-white', card: 'bg-[#0c0c0e]', border: 'border-[#1f1f23]', subtext: 'text-zinc-500', input: 'bg-[#1c1c1e]', dock: 'glass-dock' }, matte: { bg: 'bg-[#18181b]', text: 'text-zinc-100', card: 'bg-[#27272a]', border: 'border-white/5', subtext: 'text-zinc-400', input: 'bg-[#3f3f46]', dock: 'bg-[#27272a]/90' }, light: { bg: 'bg-[#f2f2f7]', text: 'text-black', card: 'bg-white', border: 'border-black/5', subtext: 'text-zinc-500', input: 'bg-white', dock: 'bg-white/80' } };
+        const THEMES = { 
+            amoled: { bg: 'bg-black', text: 'text-white', card: 'bg-[#0c0c0e]', border: 'border-[#1f1f23]', subtext: 'text-zinc-500', input: 'bg-[#1c1c1e]', dock: 'glass-dock' }, 
+            matte: { bg: 'bg-[#18181b]', text: 'text-zinc-100', card: 'bg-[#27272a]', border: 'border-white/5', subtext: 'text-zinc-400', input: 'bg-[#3f3f46]', dock: 'bg-[#27272a]/90' }, 
+            light: { bg: 'bg-[#f2f2f7]', text: 'text-black', card: 'bg-white', border: 'border-black/5', subtext: 'text-zinc-500', input: 'bg-white', dock: 'bg-white/80' } 
+        };
 
         const openSystemLink = (url) => { playSound('click'); if (!url) return alert("Link indisponível."); window.open(url, '_blank'); };
-        const toLocalDatetimeString = (timestamp) => { if (!timestamp) return ""; const date = new Date(timestamp); const pad = (n) => n.toString().padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`; };
+        const toLocalDatetimeString = (timestamp) => { 
+            if (!timestamp) return ""; 
+            const date = new Date(timestamp); 
+            const pad = (n) => n.toString().padStart(2, '0'); 
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`; 
+        };
         const formatShortDate = (timestamp) => { if (!timestamp) return ""; const date = new Date(timestamp); return date.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).toUpperCase(); };
         const getYouTubeID = (url) => { if (!url) return null; const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/; const match = url.match(regExp); return (match && match[2].length === 11) ? match[2] : null; };
 
@@ -188,7 +197,6 @@
         function InputField({ label, value, onChange, type = "text", placeholder = "", themeMode, accentColor }) { const colors = THEMES[themeMode] || THEMES.amoled; return (<div className="mb-5 w-full text-left group"><label className={`block text-[10px] font-bold mb-2 uppercase tracking-wide ml-3 transition-colors ${colors.subtext} group-focus-within:${colors.text}`}>{label}</label><input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={`w-full rounded-[20px] px-6 py-4 ${colors.input} ${colors.text} placeholder:opacity-30 border border-transparent outline-none font-medium text-sm transition-all focus:border-[${accentColor}] focus:shadow-[0_0_0_4px_rgba(255,255,255,0.05)]`} style={{ caretColor: accentColor }} /></div>); }
         function TabButton({ active, icon, label, onClick, themeMode, accentColor }) { const colors = THEMES[themeMode] || THEMES.amoled; return (<button onClick={() => { playSound('click'); onClick(); }} className="flex flex-col items-center justify-center flex-1 gap-1 btn-fluid outline-none group py-1"><div className={`transition-all duration-300 ${active ? '-translate-y-1' : ''}`} style={{ color: active ? accentColor : undefined }} className={!active ? colors.subtext : ''}><Icon name={icon} size={22} strokeWidth={active ? 2.5 : 2} /></div><span className={`text-[9px] font-bold uppercase tracking-widest ${active ? 'opacity-100' : 'opacity-40'} transition-opacity`} style={{ color: active ? accentColor : undefined }}>{label}</span></button>); }
         
-        // VIDEO PLAYER COMPONENT
         function VideoPlayer({ url, image }) { 
             const ytId = useMemo(() => getYouTubeID(url), [url]); 
             if (!url) return <img src={image} className="absolute inset-0 w-full h-full object-cover" />; 
@@ -208,7 +216,6 @@
             return <video src={url} poster={image} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />; 
         }
         
-        // APP LIST ITEM
         function AppListItem({ app, onClick, isAdmin, lockedAppId, now, themeMode, accentColor }) { 
             const colors = THEMES[themeMode] || THEMES.amoled; 
             const isPreOrder = app.scheduledAt && now < app.scheduledAt; 
@@ -256,7 +263,6 @@
             ); 
         }
 
-        // SEARCH APP CARD
         function SearchAppCard({ app, onClick, now, themeMode, accentColor }) { 
             const colors = THEMES[themeMode] || THEMES.amoled; 
             const isPreOrder = app.scheduledAt && now < app.scheduledAt; 
@@ -311,9 +317,9 @@
         }
 
         function QuickAccessCard({ icon, label, title, onClick }) { return (<div onClick={onClick} className="onyx-card w-40 h-40 rounded-[32px] p-5 flex flex-col justify-between shrink-0 snap-start active:scale-95 transition-transform cursor-pointer relative overflow-hidden group"><div className="w-10 h-10 rounded-full border border-zinc-800 bg-black flex items-center justify-center text-zinc-300 group-hover:text-white transition-colors z-10"><Icon name={icon || 'Zap'} size={18} /></div><div className="z-10"><p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{label}</p><h3 className="text-xl font-bold text-white leading-tight">{title}</h3></div></div>); }
+        
         function CollectionModal({ collection, apps, onClose, onApp, accentColor }) { const now = Date.now(); const filteredApps = apps.filter(a => { if (collection.actionType === 'filter') { return a.category === collection.actionValue && (!a.scheduledAt || now >= a.scheduledAt || a.isVisibleBeforeLaunch); } return false; }); return (<div className="fixed inset-0 z-[150] bg-black view-animate flex flex-col"><header className="px-6 pt-14 pb-4 flex justify-between items-center bg-black/90 backdrop-blur-xl sticky top-0 z-20"><div><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{collection.label}</p><h1 className="text-3xl font-extrabold tracking-tight text-white">{collection.title}</h1></div><button onClick={onClose} style={{color: accentColor}} className="w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center font-bold"><Icon name="X" size={20} /></button></header><div className="p-6 space-y-2 overflow-y-auto pb-40">{filteredApps.length === 0 ? (<div className="text-center text-zinc-500 mt-10">Nenhum app encontrado nesta coleção.</div>) : (filteredApps.map(app => (<AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode="amoled" accentColor={accentColor} />)))}</div></div>); }
 
-        // APP DETAIL
         function AppDetail({ app, onClose, themeMode, accentColor }) {
             const now = Date.now();
             const colors = THEMES[themeMode] || THEMES.amoled;
@@ -336,7 +342,7 @@
                             const sum = loadedReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
                             setAvgRating((sum / loadedReviews.length).toFixed(1));
                         }
-                    });
+                    }, err => console.log(err));
                 return () => unsub();
             }, [app.id]);
 
@@ -382,21 +388,21 @@
             const hasDependency = app.dependencyUrl && app.dependencyName;
 
             return (
-                <div className={`fixed inset-0 z-[100] bg-black text-white view-animate flex flex-col overflow-y-auto pb-10`}>
+                <div className={`fixed inset-0 z-[100] ${colors.bg} ${colors.text} view-animate flex flex-col overflow-y-auto pb-10`}>
                     {showWarning && (
                         <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-md flex items-center justify-center p-8 animate-spring">
-                            <div className={`bg-[#121212] p-6 rounded-[30px] w-full max-w-sm shadow-2xl text-center border border-zinc-800`}>
+                            <div className={`${colors.card} p-6 rounded-[30px] w-full max-w-sm shadow-2xl text-center border ${colors.border}`}>
                                 <div className="w-12 h-12 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="AlertTriangle" className="text-yellow-500" size={24} /></div>
                                 <h3 className="font-bold text-lg mb-2">Atenção</h3>
-                                <p className={`text-zinc-500 text-sm mb-6 leading-relaxed`}>{app.warningMessage}</p>
-                                <button onClick={() => setShowWarning(false)} className={`w-full py-3 bg-white text-black font-bold rounded-xl text-sm btn-fluid`}>Entendido</button>
+                                <p className={`${colors.subtext} text-sm mb-6 leading-relaxed`}>{app.warningMessage}</p>
+                                <button onClick={() => setShowWarning(false)} style={{backgroundColor: accentColor}} className={`w-full py-3 text-white font-bold rounded-xl text-sm btn-fluid`}>Entendido</button>
                             </div>
                         </div>
                     )}
 
-                    <div className={`sticky top-0 z-30 flex justify-between items-center p-6 bg-black/80 backdrop-blur-xl`}>
-                        <button onClick={() => { playSound('click'); onClose(); }} style={{color: accentColor}} className={`w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center backdrop-blur-md btn-fluid`}><Icon name="ChevronLeft" size={24} /></button>
-                        <button onClick={handleShare} style={{color: accentColor}} className={`w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center backdrop-blur-md btn-fluid`}><Icon name="Share" size={20} /></button>
+                    <div className={`sticky top-0 z-30 flex justify-between items-center p-6 ${colors.bg}/80 backdrop-blur-xl`}>
+                        <button onClick={() => { playSound('click'); onClose(); }} style={{color: accentColor}} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center backdrop-blur-md btn-fluid`}><Icon name="ChevronLeft" size={24} /></button>
+                        <button onClick={handleShare} style={{color: accentColor}} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center backdrop-blur-md btn-fluid`}><Icon name="Share" size={20} /></button>
                     </div>
 
                     <div className="px-6 animate-spring">
@@ -408,28 +414,28 @@
                                 <h1 className="text-3xl font-black leading-tight tracking-tight">{displayApp.name}</h1>
                                 {!isEffectiveLocked && app.isMod && <span className="badge-mod text-xs px-2 py-0.5">MOD</span>}
                             </div>
-                            <p className={`text-zinc-500 text-sm font-medium mb-6 uppercase tracking-wide opacity-80`}>{displayApp.developer}</p>
+                            <p className={`${colors.subtext} text-sm font-medium mb-6 uppercase tracking-wide opacity-80`}>{displayApp.developer}</p>
                             <button onClick={() => !isPreOrder && openSystemLink(app.downloadUrl)} disabled={isPreOrder} style={{ backgroundColor: isPreOrder ? undefined : accentColor }} className={`w-full max-w-[200px] py-4 rounded-full font-bold text-sm uppercase tracking-wider transition-transform active:scale-95 shadow-lg ${isPreOrder ? 'bg-zinc-800 text-zinc-500 shadow-none' : 'text-white'}`}>
                                 {isPreOrder ? 'EM BREVE' : 'OBTER'}
                             </button>
                         </div>
                         
-                        <div className={`flex justify-between border-y border-zinc-900 py-5 mb-8 overflow-x-auto`}>
-                            <div className={`px-2 text-center flex-1 border-r border-zinc-900`}>
-                                <p className={`text-[10px] text-zinc-500 font-bold uppercase mb-1`}>Classificação</p>
-                                <p className={`text-xl font-bold text-white`}>{avgRating}</p>
+                        <div className={`flex justify-between border-y ${colors.border} py-5 mb-8 overflow-x-auto`}>
+                            <div className={`px-2 text-center flex-1 border-r ${colors.border}`}>
+                                <p className={`text-[10px] ${colors.subtext} font-bold uppercase mb-1`}>Classificação</p>
+                                <p className={`text-xl font-bold ${colors.text}`}>{avgRating}</p>
                                 <div className="flex justify-center text-zinc-500">
                                     {[1,2,3,4,5].map(i => <Icon key={i} name="Star" size={10} fill={i <= Math.round(avgRating) ? "currentColor" : "none"} />)}
                                 </div>
                             </div>
-                            <div className={`px-2 text-center flex-1 border-r border-zinc-900`}>
-                                <p className={`text-[10px] text-zinc-500 font-bold uppercase mb-1`}>Categoria</p>
-                                <Icon name="Grid" size={22} className={`mx-auto text-zinc-500 mb-1`} />
-                                <p className={`text-[9px] text-zinc-500`}>{displayApp.category}</p>
+                            <div className={`px-2 text-center flex-1 border-r ${colors.border}`}>
+                                <p className={`text-[10px] ${colors.subtext} font-bold uppercase mb-1`}>Categoria</p>
+                                <Icon name="Grid" size={22} className={`mx-auto ${colors.subtext} mb-1`} />
+                                <p className={`text-[9px] ${colors.subtext}`}>{displayApp.category}</p>
                             </div>
                             <div className="px-2 text-center flex-1">
-                                <p className={`text-[10px] text-zinc-500 font-bold uppercase mb-1`}>Plataforma</p>
-                                <p className={`text-sm font-bold text-zinc-500 mt-1.5`}>{displayApp.platform || 'Mobile'}</p>
+                                <p className={`text-[10px] ${colors.subtext} font-bold uppercase mb-1`}>Plataforma</p>
+                                <p className={`text-sm font-bold ${colors.subtext} mt-1.5`}>{displayApp.platform || 'Mobile'}</p>
                             </div>
                         </div>
 
@@ -439,7 +445,7 @@
                                     <img src={app.dependencyIcon || "https://cdn-icons-png.flaticon.com/512/2099/2099192.png"} className="w-12 h-12 rounded-xl bg-zinc-800 object-cover shadow-sm" />
                                     <div>
                                         <p className="text-[10px] font-bold text-blue-500 uppercase flex items-center gap-1"><Icon name="Info" size={10} /> Dependência</p>
-                                        <p className={`font-bold text-sm text-white`}>{app.dependencyName}</p>
+                                        <p className={`font-bold text-sm ${colors.text}`}>{app.dependencyName}</p>
                                     </div>
                                 </div>
                                 <button onClick={() => openSystemLink(app.dependencyUrl)} style={{backgroundColor: accentColor}} className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-lg active:scale-95 transition-transform">Baixar</button>
@@ -448,40 +454,40 @@
 
                         <div className="mb-8">
                             <h2 className="text-xl font-bold mb-3 tracking-tight">Novidades</h2>
-                            <div className={`flex justify-between text-zinc-500 text-xs font-bold mb-3`}>
-                                <span className="bg-white/10 px-2 py-1 rounded-md text-white">Versão {displayApp.version || '1.0'}</span>
+                            <div className={`flex justify-between ${colors.subtext} text-xs font-bold mb-3`}>
+                                <span className={`${colors.input} px-2 py-1 rounded-md ${colors.text}`}>Versão {displayApp.version || '1.0'}</span>
                                 <span>{formatShortDate(app.lastUpdated || now)}</span>
                             </div>
-                            <p className={`text-zinc-400 text-sm leading-relaxed`}>{displayApp.updateNews || 'Melhorias de desempenho e correções de bugs.'}</p>
+                            <p className={`${colors.subtext} text-sm leading-relaxed`}>{displayApp.updateNews || 'Melhorias de desempenho e correções de bugs.'}</p>
                         </div>
 
                          <div className="mb-8">
                             <h2 className="text-xl font-bold mb-4 tracking-tight">Pré-visualização</h2>
                             <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x -mx-6 px-6">
-                                {displayApp.screenshots?.map((s, i) => <img key={i} src={s} className={`h-[400px] w-auto rounded-[32px] snap-center shadow-2xl bg-[#1c1c1e] object-cover border border-white/5`} />)}
+                                {displayApp.screenshots?.map((s, i) => <img key={i} src={s} className={`h-[400px] w-auto rounded-[32px] snap-center shadow-2xl ${colors.input} object-cover border ${colors.border}`} />)}
                             </div>
                         </div>
 
-                        <div className={`border-t border-zinc-900 pt-8 mb-8`}>
-                            <p className={`text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap opacity-90`}>{displayApp.description}</p>
+                        <div className={`border-t ${colors.border} pt-8 mb-8`}>
+                            <p className={`${colors.subtext} text-sm leading-relaxed whitespace-pre-wrap opacity-90`}>{displayApp.description}</p>
                         </div>
 
-                        <div className="border-t border-zinc-900 pt-8">
+                        <div className={`border-t ${colors.border} pt-8`}>
                             <h2 className="text-xl font-bold mb-6 tracking-tight">Avaliações e Opiniões</h2>
-                            <div className="bg-[#121212] p-5 rounded-[24px] border border-zinc-900 mb-6">
+                            <div className={`${colors.card} p-5 rounded-[24px] border ${colors.border} mb-6`}>
                                 <div className="text-center mb-4">
-                                    <p className="text-4xl font-black text-white">{avgRating}</p>
-                                    <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">de 5</p>
+                                    <p className={`text-4xl font-black ${colors.text}`}>{avgRating}</p>
+                                    <p className={`text-xs ${colors.subtext} font-bold uppercase tracking-widest`}>de 5</p>
                                 </div>
                                 <div className="flex justify-center gap-2 mb-4">
                                     {[1, 2, 3, 4, 5].map((star) => (
-                                        <button key={star} onClick={() => { playSound('click'); setUserRating(star); }} className={`transition-transform active:scale-90 ${star <= userRating ? 'text-yellow-400' : 'text-zinc-700'}`}>
+                                        <button key={star} onClick={() => { playSound('click'); setUserRating(star); }} className={`transition-transform active:scale-90 ${star <= userRating ? 'text-yellow-400' : colors.subtext}`}>
                                             <Icon name="Star" size={32} fill={star <= userRating ? "currentColor" : "none"} strokeWidth={star <= userRating ? 0 : 2} />
                                         </button>
                                     ))}
                                 </div>
-                                <textarea className="w-full bg-black rounded-xl p-3 text-sm text-white outline-none border border-zinc-800 focus:border-white/20 h-24 mb-3 resize-none" placeholder={currentUser ? "Escreva sua opinião..." : "Faça login para comentar"} value={commentText} onChange={e => setCommentText(e.target.value)} disabled={!currentUser} />
-                                {currentUser ? <button onClick={handleSubmitReview} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform">Enviar Avaliação</button> : <p className="text-center text-xs text-red-400 font-bold">Faça login para enviar</p>}
+                                <textarea className={`w-full ${colors.input} rounded-xl p-3 text-sm ${colors.text} outline-none border ${colors.border} focus:border-white/20 h-24 mb-3 resize-none`} placeholder={currentUser ? "Escreva sua opinião..." : "Faça login para comentar"} value={commentText} onChange={e => setCommentText(e.target.value)} disabled={!currentUser} />
+                                {currentUser ? <button onClick={handleSubmitReview} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform">Enviar Avaliação</button> : <p className="text-center text-xs text-red-400 font-bold">Faça login para enviar</p>}
                             </div>
                         </div>
                     </div>
@@ -491,6 +497,7 @@
 
         function TodayView({ apps, highlights, quickAccess, onProfile, onSettings, onApp, onQuickAccess, isAdmin, profileImage, themeMode, accentColor }) {
             const now = Date.now(); 
+            const colors = THEMES[themeMode] || THEMES.amoled;
             const [lockedAppId, setLockedAppId] = useState(null); 
             const activeHighlights = highlights.filter(h => { if(h.isHidden) return false; const isLive = !h.scheduledAt || now >= h.scheduledAt; return isLive; }).sort((a,b) => (a.order || 99) - (b.order || 99)); 
             
@@ -511,22 +518,22 @@
             };
 
             return (
-                <div className={`view-animate bg-black min-h-screen pb-40 relative`}>
-                    <header className="pt-16 px-6 pb-2 flex justify-between items-end bg-black sticky top-0 z-40">
+                <div className={`view-animate ${colors.bg} min-h-screen pb-40 relative`}>
+                    <header className={`pt-16 px-6 pb-2 flex justify-between items-end ${colors.bg} sticky top-0 z-40`}>
                         <div>
-                            <p className="text-[13px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{dayName}, {dayNum}</p>
-                            <h1 className="text-4xl font-black text-white tracking-tighter">Hoje</h1>
+                            <p className={`text-[13px] font-bold ${colors.subtext} uppercase tracking-widest mb-1`}>{dayName}, {dayNum}</p>
+                            <h1 className={`text-4xl font-black ${colors.text} tracking-tighter`}>Hoje</h1>
                         </div>
                         <div className="flex gap-3 mb-1">
-                            {isAdmin && (<button onClick={() => { playSound('click'); onSettings(); }} className="w-10 h-10 rounded-full onyx-button flex items-center justify-center transition-all"><Icon name="Settings" size={18} /></button>)}
-                            <button onClick={() => { playSound('click'); onProfile(); }} className="w-10 h-10 rounded-full onyx-button flex items-center justify-center overflow-hidden transition-all">{profileImage ? <img src={profileImage} className="w-full h-full object-cover" /> : <Icon name="User" size={18} />}</button>
+                            {isAdmin && (<button onClick={() => { playSound('click'); onSettings(); }} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center transition-all border ${colors.border}`}><Icon name="Settings" size={18} /></button>)}
+                            <button onClick={() => { playSound('click'); onProfile(); }} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center overflow-hidden transition-all border ${colors.border}`}>{profileImage ? <img src={profileImage} className="w-full h-full object-cover" /> : <Icon name="User" size={18} />}</button>
                         </div>
                     </header>
                     
                     <div className="space-y-10 px-6 pt-8">
                         {quickAccess.length > 0 && (
                             <section>
-                                <h2 className="text-xl font-bold text-white mb-4 tracking-tight">Acesso Rápido</h2>
+                                <h2 className={`text-xl font-bold ${colors.text} mb-4 tracking-tight`}>Acesso Rápido</h2>
                                 <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x -mx-6 px-6 pb-2">
                                     {quickAccess.map(qa => (<QuickAccessCard key={qa.id} icon={qa.icon} label={qa.label} title={qa.title} onClick={() => { playSound('click'); onQuickAccess(qa); }} />))}
                                 </div>
@@ -535,10 +542,10 @@
                         
                         {stories.length > 0 && (
                             <section>
-                                <h2 className="text-xl font-bold text-white mb-4 tracking-tight">Histórias</h2>
+                                <h2 className={`text-xl font-bold ${colors.text} mb-4 tracking-tight`}>Histórias</h2>
                                 <div className="flex overflow-x-auto gap-4 no-scrollbar -mx-6 px-6 snap-x snap-mandatory">
                                     {stories.map(h => (
-                                        <div key={h.id} className={`snap-center shrink-0 w-[80vw] max-w-[320px] aspect-[4/5] overflow-hidden relative rounded-[32px] btn-fluid cursor-pointer onyx-card`} onClick={() => { if(h.type !== 'mosaic' && h.appId) { playSound('open'); onApp(apps.find(a => a.id === h.appId)); }}}>
+                                        <div key={h.id} className={`snap-center shrink-0 w-[80vw] max-w-[320px] aspect-[4/5] overflow-hidden relative rounded-[32px] btn-fluid cursor-pointer ${colors.card} border ${colors.border}`} onClick={() => { if(h.type !== 'mosaic' && h.appId) { playSound('open'); onApp(apps.find(a => a.id === h.appId)); }}}>
                                             {h.type === 'mosaic' ? (
                                                 <div className="flex flex-col gap-2 h-full p-2">
                                                     <div className="w-full h-[60%] rounded-[24px] overflow-hidden relative shadow-lg" onClick={(e) => { e.stopPropagation(); playSound('open'); h.items && h.items[0].appId && onApp(apps.find(a => a.id === h.items[0].appId)) }}><img src={h.items[0].image} className="w-full h-full object-cover" /></div>
@@ -563,7 +570,7 @@
                             <section>
                                 <div className="grid grid-cols-2 gap-4">
                                     {widgets.map(w => (
-                                        <div key={w.id} onClick={() => { if(w.appId) { playSound('open'); onApp(apps.find(a => a.id === w.appId)); }}} className={`rounded-[28px] overflow-hidden relative shadow-lg btn-fluid cursor-pointer onyx-card ${w.cardSize === 'full' ? 'col-span-2 aspect-[2/1]' : 'col-span-1 aspect-square'}`}>
+                                        <div key={w.id} onClick={() => { if(w.appId) { playSound('open'); onApp(apps.find(a => a.id === w.appId)); }}} className={`rounded-[28px] overflow-hidden relative shadow-lg btn-fluid cursor-pointer ${colors.card} border ${colors.border} ${w.cardSize === 'full' ? 'col-span-2 aspect-[2/1]' : 'col-span-1 aspect-square'}`}>
                                             <img src={w.image} className="w-full h-full object-cover" />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent p-4 flex flex-col justify-end">
                                                 <p className="text-[9px] font-bold text-zinc-300 uppercase tracking-wider mb-1">{w.subtitle}</p>
@@ -591,7 +598,7 @@
                         
                         {Array.from(new Set(releasedApps.map(a => a.category))).map(cat => (
                             <section key={cat}>
-                                <h3 className={`text-lg font-bold mb-4 text-white border-b border-zinc-900 pb-2 tracking-tight`}>{cat}</h3>
+                                <h3 className={`text-lg font-bold mb-4 ${colors.text} border-b ${colors.border} pb-2 tracking-tight`}>{cat}</h3>
                                 <div className="space-y-1">{releasedApps.filter(a => a.category === cat).map(app => <AppListItem key={app.id} app={app} onClick={() => handleAppClick(app)} isAdmin={isAdmin} lockedAppId={lockedAppId} now={now} themeMode={themeMode} accentColor={accentColor} />)}</div>
                             </section>
                         ))}
@@ -602,15 +609,16 @@
 
         function CategorizedView({ title, categoryFilter, apps, onApp, themeMode, accentColor }) {
             const now = Date.now();
+            const colors = THEMES[themeMode] || THEMES.amoled;
             const filtered = apps.filter(a => a.category === categoryFilter && (!a.scheduledAt || now >= a.scheduledAt || a.isVisibleBeforeLaunch));
             return (
-                <div className="view-animate bg-black min-h-screen pb-40 relative">
-                    <header className="pt-16 px-6 pb-6 sticky top-0 z-40 bg-black/90 backdrop-blur-md">
-                        <h1 className="text-4xl font-black text-white tracking-tighter">{title}</h1>
+                <div className={`view-animate ${colors.bg} min-h-screen pb-40 relative`}>
+                    <header className={`pt-16 px-6 pb-6 sticky top-0 z-40 ${colors.bg}/90 backdrop-blur-md`}>
+                        <h1 className={`text-4xl font-black ${colors.text} tracking-tighter`}>{title}</h1>
                     </header>
                     <div className="px-6 space-y-2 pt-2">
                         {filtered.length === 0 ? (
-                            <div className="text-center py-20 text-zinc-600">Nenhum item disponível.</div>
+                            <div className={`text-center py-20 ${colors.subtext}`}>Nenhum item disponível.</div>
                         ) : filtered.map(app => (
                             <AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode={themeMode} accentColor={accentColor} />
                         ))}
@@ -619,12 +627,82 @@
             );
         }
 
-        function SearchView({ apps, onApp, onProfile, profileImage, themeMode, accentColor }) { const [query, setQuery] = useState(''); const now = Date.now(); const filtered = apps.filter(a => a.name.toLowerCase().includes(query.toLowerCase()) && (!a.scheduledAt || now >= a.scheduledAt || a.isVisibleBeforeLaunch)); return (<div className={`view-animate bg-black min-h-screen transition-colors duration-300 relative`}><header className={`pt-16 px-6 pb-2 sticky top-0 z-20 bg-black/95 backdrop-blur-md`}><h1 className={`text-4xl font-black tracking-tighter text-white mb-2`}>Busca</h1></header><div className="px-5 pt-4 pb-48 space-y-4">{filtered.length === 0 ? (<div className="text-center mt-20 opacity-50"><Icon name="Search" size={48} className="mx-auto mb-4 text-zinc-700" /><p className="font-bold text-zinc-500">Comece a digitar...</p></div>) : (filtered.map(app => (<SearchAppCard key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode={themeMode} accentColor={accentColor} />)))}</div><div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-40"><div className="search-bar-floating rounded-[24px] flex items-center px-4 py-3 gap-3"><Icon name="Search" size={20} className="text-zinc-400" /><input className="bg-transparent flex-1 text-[16px] text-white outline-none placeholder:text-zinc-500 font-medium" placeholder="Jogos, Apps, Histórias..." value={query} onChange={(e) => setQuery(e.target.value)} autoFocus={false} />{query && (<button onClick={() => setQuery('')} className="bg-zinc-700 rounded-full p-1 text-black hover:bg-zinc-600 transition"><Icon name="X" size={12} /></button>)}</div></div></div>); }
+        function SearchView({ apps, onApp, onProfile, profileImage, themeMode, accentColor }) { 
+            const [query, setQuery] = useState(''); 
+            const now = Date.now(); 
+            const colors = THEMES[themeMode] || THEMES.amoled;
+            const filtered = apps.filter(a => a.name.toLowerCase().includes(query.toLowerCase()) && (!a.scheduledAt || now >= a.scheduledAt || a.isVisibleBeforeLaunch)); 
+            
+            return (
+                <div className={`view-animate ${colors.bg} min-h-screen transition-colors duration-300 relative`}>
+                    <header className={`pt-16 px-6 pb-2 sticky top-0 z-20 ${colors.bg}/95 backdrop-blur-md`}>
+                        <h1 className={`text-4xl font-black tracking-tighter ${colors.text} mb-2`}>Busca</h1>
+                    </header>
+                    <div className="px-5 pt-4 pb-48 space-y-4">
+                        {filtered.length === 0 ? (
+                            <div className="text-center mt-20 opacity-50">
+                                <Icon name="Search" size={48} className={`mx-auto mb-4 ${colors.subtext}`} />
+                                <p className={`font-bold ${colors.subtext}`}>Comece a digitar...</p>
+                            </div>
+                        ) : (
+                            filtered.map(app => (
+                                <SearchAppCard key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode={themeMode} accentColor={accentColor} />
+                            ))
+                        )}
+                    </div>
+                    <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-40">
+                        <div className="search-bar-floating rounded-[24px] flex items-center px-4 py-3 gap-3">
+                            <Icon name="Search" size={20} className="text-zinc-400" />
+                            <input className="bg-transparent flex-1 text-[16px] text-white outline-none placeholder:text-zinc-500 font-medium" placeholder="Jogos, Apps, Histórias..." value={query} onChange={(e) => setQuery(e.target.value)} autoFocus={false} />
+                            {query && (<button onClick={() => setQuery('')} className="bg-zinc-700 rounded-full p-1 text-black hover:bg-zinc-600 transition"><Icon name="X" size={12} /></button>)}
+                        </div>
+                    </div>
+                </div>
+            ); 
+        }
         
         function QuickAccessManager({ quickAccess, onClose, accentColor }) { const [form, setForm] = useState({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); const [editingId, setEditingId] = useState(null); const [showIconPicker, setShowIconPicker] = useState(false); const [confirmDeleteId, setConfirmDeleteId] = useState(null); const handleSubmit = async () => { if(!form.title) return; try { const coll = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('quickAccess'); if(editingId) { await coll.doc(editingId).update(form); setEditingId(null); } else { await coll.add(form); } setForm({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); playSound('success'); } catch(e) { console.log(e); } }; const executeDelete = async (id) => { try { await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('quickAccess').doc(id).delete(); playSound('success'); setConfirmDeleteId(null); } catch(e) { console.log(e); } }; const edit = (item) => { setForm(item); setEditingId(item.id); }; return (<div className="fixed inset-0 z-[250] bg-black view-animate flex flex-col"><header className="px-6 pt-14 pb-4 flex justify-between items-center bg-zinc-900"><h2 className="text-xl font-bold text-white">Gerenciar Acesso Rápido</h2><button onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center"><Icon name="X" size={18} /></button></header><div className="flex-1 overflow-y-auto p-6 space-y-8"><div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 space-y-4"><h3 className="text-sm font-bold text-zinc-400 uppercase">{editingId ? 'Editar Botão' : 'Novo Botão'}</h3><input className="w-full bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Título (ex: Novos Jogos)" value={form.title} onChange={e => setForm({...form, title: e.target.value})} /><div className="flex gap-2"><input className="flex-1 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Rótulo (ex: DESTAQUE)" value={form.label} onChange={e => setForm({...form, label: e.target.value})} /><input className="w-1/3 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Ordem" type="number" value={form.order} onChange={e => setForm({...form, order: parseInt(e.target.value)})} /></div><div className="relative"><label className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Ícone</label><div className="flex gap-2"><input className="flex-1 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Nome do Ícone (ex: Zap)" value={form.icon} onChange={e => setForm({...form, icon: e.target.value})} /><button onClick={() => setShowIconPicker(!showIconPicker)} className="w-12 bg-black rounded-xl border border-zinc-800 flex items-center justify-center text-zinc-300 active:bg-zinc-800"><Icon name={form.icon || 'HelpCircle'} /></button></div>{showIconPicker && (<div className="absolute top-full left-0 right-0 mt-2 bg-zinc-800 border border-zinc-700 p-3 rounded-2xl z-20 shadow-2xl grid grid-cols-6 gap-2 max-h-48 overflow-y-auto">{POPULAR_ICONS.map(iconName => (<button key={iconName} onClick={() => { setForm({...form, icon: iconName}); setShowIconPicker(false); }} className={`p-2 rounded-lg flex items-center justify-center hover:bg-black transition-colors ${form.icon === iconName ? 'bg-black text-white' : 'text-zinc-400'}`}><Icon name={iconName} size={20} /></button>))}</div>)}</div><div><label className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Tipo de Ação</label><select className="w-full bg-black text-white rounded-xl p-3 text-sm outline-none" value={form.actionType} onChange={e => setForm({...form, actionType: e.target.value})}><option value="filter">Abrir Coleção (Filtro)</option><option value="link">Abrir Link Externo</option><option value="tab">Mudar Aba (Principal)</option></select></div><input className="w-full bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder={form.actionType === 'filter' ? 'Nome da Categoria (ex: Jogos)' : (form.actionType === 'link' ? 'URL (https://...)' : 'Nome da Aba (today, search)')} value={form.actionValue} onChange={e => setForm({...form, actionValue: e.target.value})} /><button onClick={handleSubmit} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-sm">{editingId ? 'Atualizar' : 'Criar'}</button>{editingId && <button onClick={() => { setEditingId(null); setForm({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); }} className="w-full py-2 text-zinc-500 text-xs">Cancelar Edição</button>}</div><div className="space-y-2"><h3 className="text-sm font-bold text-zinc-400 uppercase">Botões Ativos</h3>{quickAccess.sort((a,b) => a.order - b.order).map(item => (<div key={item.id} className="flex items-center justify-between bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-zinc-400"><Icon name={item.icon} size={14} /></div><div><p className="font-bold text-white text-sm">{item.title}</p><p className="text-[10px] text-zinc-500">{item.actionType}: {item.actionValue}</p></div></div><div className="flex gap-2"><button onClick={() => edit(item)} className="p-2 bg-zinc-800 rounded-lg text-white"><Icon name="Edit2" size={14} /></button>{confirmDeleteId === item.id ? (<button onClick={() => executeDelete(item.id)} className="px-3 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold animate-spring">Confirmar?</button>) : (<button onClick={() => { playSound('click'); setConfirmDeleteId(item.id); }} className="p-2 bg-red-900/30 text-red-500 rounded-lg"><Icon name="Trash" size={14} /></button>)}</div></div>))}</div></div></div>); }
-        function SettingsModal({ onClose, accentColor, onAddApp, onAddStory, onSchedule, onQuickAccessManager, maintenance, toggleMaintenance, noticeConfig, setNoticeConfig }) { const [savingNotice, setSavingNotice] = useState(false); const saveNotice = async () => { playSound('click'); setSavingNotice(true); await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('config').set({ notice: noticeConfig }, { merge: true }); playSound('success'); setSavingNotice(false); alert("Salvo!"); }; return (<div className={`fixed inset-0 z-[200] bg-black view-animate flex flex-col`}><header className={`px-6 pt-14 pb-4 flex justify-between items-center`}><h1 className={`text-3xl font-extrabold tracking-tight text-white`}>Ajustes</h1><button onClick={() => { playSound('click'); onClose(); }} style={{backgroundColor: `${accentColor}20`, color: accentColor}} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold`}><Icon name="X" size={20} /></button></header><div className="flex-1 overflow-y-auto p-6 space-y-8 pb-20"><section><h3 className={`text-xs font-bold uppercase tracking-wider mb-4 text-zinc-500 ml-2`}>Conteúdo</h3><div className={`rounded-3xl overflow-hidden bg-[#121212] border border-zinc-900 shadow-lg`}><div onClick={() => { playSound('click'); onAddApp(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="PlusSquare" className="text-white" size={22} /><span className={`font-bold text-white`}>Adicionar App</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div><div onClick={() => { playSound('click'); onAddStory(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Layout" className="text-white" size={22} /><span className={`font-bold text-white`}>Novo Destaque</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div><div onClick={() => { playSound('click'); onQuickAccessManager(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Zap" className="text-white" size={22} /><span className={`font-bold text-white`}>Acesso Rápido</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div><div onClick={() => { playSound('click'); onSchedule(); }} className={`p-5 flex items-center justify-between active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Clock" className="text-white" size={22} /><span className={`font-bold text-white`}>Gerenciar Itens</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div></div></section><section><h3 className={`text-xs font-bold uppercase tracking-wider mb-4 text-zinc-500 ml-2`}>Sistema</h3><div className={`rounded-3xl overflow-hidden bg-[#121212] border border-zinc-900 shadow-lg p-5 flex items-center justify-between`}><div className="flex items-center gap-3"><Icon name="AlertOctagon" className="text-white" size={22} /><span className={`font-bold text-white`}>Modo Manutenção</span></div><IOSSwitch checked={maintenance} onChange={toggleMaintenance} accentColor={accentColor} /></div></section><section><h3 className={`text-xs font-bold uppercase tracking-wider mb-4 text-zinc-500 ml-2`}>Aviso Global</h3><div className={`p-5 rounded-3xl bg-[#121212] border border-zinc-900 space-y-4 shadow-lg`}><div className="flex justify-between items-center"><span className={`text-sm font-bold text-white`}>Ativar Pop-up</span><IOSSwitch checked={noticeConfig.active} onChange={v => setNoticeConfig({...noticeConfig, active: v})} accentColor={accentColor} /></div><input type="text" placeholder="Título" value={noticeConfig.title} onChange={e => setNoticeConfig({...noticeConfig, title: e.target.value})} className={`w-full bg-black rounded-[20px] p-3 text-sm text-white outline-none border border-zinc-800`} /><textarea rows="2" placeholder="Mensagem..." value={noticeConfig.message} onChange={e => setNoticeConfig({...noticeConfig, message: e.target.value})} className={`w-full bg-black rounded-[20px] p-3 text-sm text-white outline-none border border-zinc-800`} /><button onClick={saveNotice} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-sm shadow-md active:scale-95 transition-transform">Atualizar</button></div></section></div></div>); }
         
-        // HIGHLIGHT MODAL CORRECTED
+        function SettingsModal({ onClose, accentColor, onAddApp, onAddStory, onSchedule, onQuickAccessManager, maintenance, toggleMaintenance, noticeConfig, setNoticeConfig }) { 
+            const [savingNotice, setSavingNotice] = useState(false); 
+            const saveNotice = async () => { playSound('click'); setSavingNotice(true); await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('config').set({ notice: noticeConfig }, { merge: true }); playSound('success'); setSavingNotice(false); alert("Salvo!"); }; 
+            return (
+                <div className={`fixed inset-0 z-[200] bg-black view-animate flex flex-col`}>
+                    <header className={`px-6 pt-14 pb-4 flex justify-between items-center`}>
+                        <h1 className={`text-3xl font-extrabold tracking-tight text-white`}>Ajustes</h1>
+                        <button onClick={() => { playSound('click'); onClose(); }} style={{backgroundColor: `${accentColor}20`, color: accentColor}} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold`}><Icon name="X" size={20} /></button>
+                    </header>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-20">
+                        <section>
+                            <h3 className={`text-xs font-bold uppercase tracking-wider mb-4 text-zinc-500 ml-2`}>Conteúdo</h3>
+                            <div className={`rounded-3xl overflow-hidden bg-[#121212] border border-zinc-900 shadow-lg`}>
+                                <div onClick={() => { playSound('click'); onAddApp(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="PlusSquare" className="text-white" size={22} /><span className={`font-bold text-white`}>Adicionar App</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                                <div onClick={() => { playSound('click'); onAddStory(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Layout" className="text-white" size={22} /><span className={`font-bold text-white`}>Novo Destaque</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                                <div onClick={() => { playSound('click'); onQuickAccessManager(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Zap" className="text-white" size={22} /><span className={`font-bold text-white`}>Acesso Rápido</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                                <div onClick={() => { playSound('click'); onSchedule(); }} className={`p-5 flex items-center justify-between active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Clock" className="text-white" size={22} /><span className={`font-bold text-white`}>Gerenciar Itens</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                            </div>
+                        </section>
+                        <section>
+                            <h3 className={`text-xs font-bold uppercase tracking-wider mb-4 text-zinc-500 ml-2`}>Sistema</h3>
+                            <div className={`rounded-3xl overflow-hidden bg-[#121212] border border-zinc-900 shadow-lg p-5 flex items-center justify-between`}>
+                                <div className="flex items-center gap-3"><Icon name="AlertOctagon" className="text-white" size={22} /><span className={`font-bold text-white`}>Modo Manutenção</span></div>
+                                <IOSSwitch checked={maintenance} onChange={toggleMaintenance} accentColor={accentColor} />
+                            </div>
+                        </section>
+                        <section>
+                            <h3 className={`text-xs font-bold uppercase tracking-wider mb-4 text-zinc-500 ml-2`}>Aviso Global</h3>
+                            <div className={`p-5 rounded-3xl bg-[#121212] border border-zinc-900 space-y-4 shadow-lg`}>
+                                <div className="flex justify-between items-center"><span className={`text-sm font-bold text-white`}>Ativar Pop-up</span><IOSSwitch checked={noticeConfig.active} onChange={v => setNoticeConfig({...noticeConfig, active: v})} accentColor={accentColor} /></div>
+                                <input type="text" placeholder="Título" value={noticeConfig.title} onChange={e => setNoticeConfig({...noticeConfig, title: e.target.value})} className={`w-full bg-black rounded-[20px] p-3 text-sm text-white outline-none border border-zinc-800`} />
+                                <textarea rows="2" placeholder="Mensagem..." value={noticeConfig.message} onChange={e => setNoticeConfig({...noticeConfig, message: e.target.value})} className={`w-full bg-black rounded-[20px] p-3 text-sm text-white outline-none border border-zinc-800`} />
+                                <button onClick={saveNotice} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-sm shadow-md active:scale-95 transition-transform">Atualizar</button>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            ); 
+        }
+        
         function HighlightModal({ editingHighlight, apps, onClose, accentColor }) { 
             const [form, setForm] = useState({ type: 'standard', items: [{}, {}, {}], displayMode: 'story', cardSize: 'full', order: 1 }); 
             const [loading, setLoading] = useState(false); 
@@ -635,7 +713,6 @@
                 if (editingHighlight) { 
                     const mergedItems = editingHighlight.items ? [...editingHighlight.items] : [{}, {}, {}]; 
                     while(mergedItems.length < 3) mergedItems.push({}); 
-                    // Support legacy "layout" property by mapping it to "type"
                     setForm({ ...base, ...editingHighlight, type: editingHighlight.type || editingHighlight.layout || 'standard', items: mergedItems, videoUrl: editingHighlight.videoUrl || '', scheduledAt: toLocalDatetimeString(editingHighlight.scheduledAt) }); 
                 } else setForm(base); 
             }, [editingHighlight]); 
@@ -646,16 +723,25 @@
 
             const save = async () => { 
                 setLoading(true); 
-                const now = Date.now(); 
-                const data = { ...form, createdAt: form.createdAt || now, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).getTime() : null }; 
+                const data = { ...form, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).getTime() : null }; 
                 try { 
                     const coll = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('highlights'); 
                     if (editingHighlight?.id) await coll.doc(editingHighlight.id).update(data); 
-                    else await coll.add(data); 
+                    else await coll.add({...data, createdAt: Date.now()}); 
                     playSound('success'); 
                     onClose(); 
                 } catch (e) { alert(e.message); } finally { setLoading(false); } 
             }; 
+
+            const handleDelete = async () => {
+                if(!editingHighlight?.id) return;
+                if(!confirm("Deseja apagar este destaque permanentemente?")) return;
+                try {
+                    await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('highlights').doc(editingHighlight.id).delete();
+                    playSound('success');
+                    onClose();
+                } catch(e) { alert("Erro ao apagar: " + e.message); }
+            };
 
             return (
                 <div className="fixed inset-0 z-[150] bg-black text-white animate-spring flex flex-col overflow-y-auto">
@@ -684,6 +770,8 @@
                                 </div>
                             </div>
                         )}
+
+                        <InputField label="Programar Lançamento (Vazio p/ agora)" type="datetime-local" value={form.scheduledAt} onChange={v => setForm({...form, scheduledAt: v})} accentColor={accentColor} />
 
                         {form.type === 'standard' ? (
                             <>
@@ -717,7 +805,7 @@
                             </div>
                         )}
                         <div className="flex gap-4 pt-4">
-                            {editingHighlight && <button onClick={() => { if(confirm('Deletar?')) db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('highlights').doc(editingHighlight.id).delete().then(onClose)}} className="p-4 bg-red-500/10 text-red-500 rounded-2xl"><Icon name="Trash2" /></button>}
+                            {editingHighlight && <button onClick={handleDelete} className="p-4 bg-red-500/10 text-red-500 rounded-2xl active:scale-90 transition-transform"><Icon name="Trash2" /></button>}
                             <button onClick={save} style={{backgroundColor: accentColor}} className="flex-1 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">{loading ? 'Salvando...' : 'Salvar Destaque'}</button>
                         </div>
                     </div>
@@ -726,8 +814,9 @@
         }
         
         function AdminAppModal({ editingApp, onClose, accentColor }) { 
-            const [form, setForm] = useState({}); 
+            const [form, setForm] = useState({ screenshots: [] }); 
             const [loading, setLoading] = useState(false); 
+            const [newShotUrl, setNewShotUrl] = useState("");
 
             useEffect(() => { 
                 const base = { name: '', developer: '', version: '', icon: '', category: 'Apps', screenshots: [], downloadUrl: '', description: '', rating: '4+', updateNews: '', isMod: false, scheduledAt: '', isVisibleBeforeLaunch: false, hasWarning: false, warningMessage: '', platform: 'Mobile', isLocked: false, unlockSurpriseAt: '', dependencyName: '', dependencyUrl: '', dependencyIcon: '' }; 
@@ -749,22 +838,44 @@
                 } catch (e) { alert(e.message); } finally { setLoading(false); } 
             }; 
 
+            const addShot = () => { if(newShotUrl) { setForm({...form, screenshots: [...(form.screenshots || []), newShotUrl]}); setNewShotUrl(""); } };
+            const removeShot = (idx) => { const s = [...form.screenshots]; s.splice(idx, 1); setForm({...form, screenshots: s}); };
+
             return (
                 <div className="fixed inset-0 z-[150] bg-black text-white animate-spring flex flex-col overflow-y-auto">
                     <header className="flex justify-between items-center p-6 sticky top-0 bg-black/90 backdrop-blur-md border-b border-zinc-800 z-10"><h2 className="text-2xl font-bold">App Editor</h2><button onClick={() => { playSound('click'); onClose(); }}><Icon name="X" size={24} /></button></header>
                     <div className="p-6 space-y-5 max-w-xl mx-auto w-full pb-20">
                         <InputField label="Nome" value={form.name} onChange={v => setForm({...form, name: v})} accentColor={accentColor} />
+                        <InputField label="Agendar Lançamento (Vazio p/ agora)" type="datetime-local" value={form.scheduledAt} onChange={v => setForm({...form, scheduledAt: v})} accentColor={accentColor} />
                         <InputField label="Desenvolvedor" value={form.developer} onChange={v => setForm({...form, developer: v})} accentColor={accentColor} />
                         <InputField label="Ícone (URL)" value={form.icon} onChange={v => setForm({...form, icon: v})} accentColor={accentColor} />
                         <InputField label="Download URL" value={form.downloadUrl} onChange={v => setForm({...form, downloadUrl: v})} accentColor={accentColor} />
+                        
+                        <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
+                            <label className="text-[10px] font-bold text-zinc-500 uppercase mb-3 block">Screenshots</label>
+                            <div className="flex gap-2 mb-4">
+                                <input className="flex-1 bg-black rounded-xl p-3 text-sm outline-none border border-zinc-800" placeholder="URL da Imagem" value={newShotUrl} onChange={e => setNewShotUrl(e.target.value)} />
+                                <button onClick={addShot} style={{backgroundColor: accentColor}} className="w-12 rounded-xl flex items-center justify-center"><Icon name="Plus" /></button>
+                            </div>
+                            <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                                {form.screenshots?.map((url, i) => (
+                                    <div key={i} className="relative shrink-0">
+                                        <img src={url} className="w-20 h-32 object-cover rounded-xl border border-zinc-800" />
+                                        <button onClick={() => removeShot(i)} className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1"><Icon name="X" size={12} /></button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
                         <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
                             <label className="text-xs font-bold text-zinc-500 uppercase">Categoria</label>
                             <select className="w-full bg-black text-white rounded-xl p-3 mt-2 text-sm font-medium outline-none" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
                                 {['Apps', 'Jogos', 'PC', 'Streaming', 'Utilitários', 'Rede Sociais'].map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
+
                         <div className="flex gap-4 pt-4">
-                            {editingApp && <button onClick={() => { if(confirm('Deletar?')) db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('apps').doc(editingApp.id).delete().then(onClose)}} className="p-4 bg-red-500/10 text-red-500 rounded-2xl"><Icon name="Trash2" /></button>}
+                            {editingApp && <button onClick={() => { if(confirm('Deletar App?')) db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('apps').doc(editingApp.id).delete().then(onClose)}} className="p-4 bg-red-500/10 text-red-500 rounded-2xl active:scale-90 transition-transform"><Icon name="Trash2" /></button>}
                             <button onClick={save} style={{backgroundColor: accentColor}} className="flex-1 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">{loading ? 'Salvando...' : 'Salvar App'}</button>
                         </div>
                     </div>
@@ -807,8 +918,16 @@
             const handleSetAccent = (newHex) => { setAccentColor(newHex); localStorage.setItem('nexus_accent', newHex); };
             const handleLogin = (isAdminUser, username, customImage) => { localStorage.setItem('nexus_username', username); if(isAdminUser) setAdminState(true); localStorage.setItem('nexus_logged_in', 'true'); if(customImage) setProfileImage(customImage); setView('store'); };
 
+            const toggleMaintenance = async () => {
+                const newState = !isMaintenance;
+                try {
+                    await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('config').set({ maintenance: newState }, { merge: true });
+                    playSound('success');
+                } catch(e) { console.error("Erro Manutenção:", e); }
+            };
+
             useEffect(() => {
-                const unsub = auth.onAuthStateChanged(u => { 
+                const unsubAuth = auth.onAuthStateChanged(u => { 
                     setUser(u); 
                     if(localStorage.getItem('nexus_logged_in') === 'true') {
                         const storedUser = localStorage.getItem('nexus_username');
@@ -816,31 +935,31 @@
                         setView('store');
                     } else { setView('login'); }
                 });
-                if (!auth.currentUser) auth.signInAnonymously();
-                return unsub;
+                if (!auth.currentUser) auth.signInAnonymously().catch(err => console.log(err));
+                return unsubAuth;
             }, []);
 
             useEffect(() => {
                 if (!user) return;
                 const ref = db.collection('artifacts').doc(DB_APP_ID);
-                const u1 = ref.collection('public').doc('data').collection('apps').onSnapshot(s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))));
-                const u2 = ref.collection('public').doc('data').collection('highlights').onSnapshot(s => setHighlights(s.docs.map(d => ({id: d.id, ...d.data()}))));
-                const u3 = ref.collection('public').doc('config').onSnapshot(d => { if (d.exists) { const data = d.data(); setIsMaintenance(data.maintenance || false); setNoticeConfig(data.notice || { active: false, title: '', message: '' }); }});
-                const u4 = ref.collection('public').doc('data').collection('quickAccess').onSnapshot(s => setQuickAccess(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const u1 = ref.collection('public').doc('data').collection('apps').onSnapshot(s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
+                const u2 = ref.collection('public').doc('data').collection('highlights').onSnapshot(s => setHighlights(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
+                const u3 = ref.collection('public').doc('config').onSnapshot(d => { if (d.exists) { const data = d.data(); setIsMaintenance(data.maintenance || false); setNoticeConfig(data.notice || { active: false, title: '', message: '' }); }}, err => console.log(err));
+                const u4 = ref.collection('public').doc('data').collection('quickAccess').onSnapshot(s => setQuickAccess(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
                 return () => { u1(); u2(); u3(); u4(); };
             }, [user]);
 
             const handleImageUpload = async (base64) => { setProfileImage(base64); const currentUsername = localStorage.getItem('nexus_username'); if(!isAdmin && currentUsername) { await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(currentUsername).update({ image: base64 }); } };
             const handleQuickAccess = (item) => { if(item.actionType === 'filter') { setSelectedCollection(item); } else if (item.actionType === 'link') { openSystemLink(item.actionValue); } else if (item.actionType === 'tab') { setActiveTab(item.actionValue); } };
 
-            if (isMaintenance && !isAdmin) return <div className="fixed inset-0 bg-black flex items-center justify-center text-white font-bold animate-pulse">Manutenção</div>;
+            if (isMaintenance && !isAdmin) return <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-white font-bold p-8 text-center"><div className="w-16 h-16 bg-zinc-900 rounded-3xl border border-zinc-800 flex items-center justify-center mb-6 animate-float"><Icon name="AlertOctagon" className="text-red-500" size={32} /></div><h1 className="text-2xl mb-2">Manutenção</h1><p className="text-zinc-500 text-sm font-medium leading-relaxed">Estamos a preparar algo incrível para si. <br/> Voltamos em breve.</p></div>;
             if (view === 'loading') return <div className="h-screen bg-black flex items-center justify-center"><div className="w-10 h-10 border-4 rounded-full animate-spin border-t-transparent" style={{borderColor: accentColor}}></div></div>;
             if (view === 'login') return <LoginView onLogin={handleLogin} accentColor={accentColor} />;
 
             return (
-                <div className={`h-screen w-full bg-black overflow-hidden flex flex-col font-sans transition-colors duration-500`}>
+                <div className={`h-screen w-full ${colors.bg} ${colors.text} overflow-hidden flex flex-col font-sans transition-colors duration-500`}>
                     {showRobot && <NexusBot mode="greeting" message={`Olá, <span style="color: ${accentColor}">${localStorage.getItem('nexus_username') || 'Visitante'}</span>`} accentColor={accentColor} onComplete={() => setShowRobot(false)} />}
-                    {noticeConfig.active && !showRobot && <div className="fixed inset-0 z-[8000] bg-black/80 flex items-center justify-center p-6"><div className="bg-zinc-900 p-6 rounded-3xl max-w-xs text-center"><h3 className="font-bold text-white text-lg mb-2">{noticeConfig.title}</h3><p className="text-zinc-400 text-sm mb-6">{noticeConfig.message}</p><button onClick={() => setNoticeConfig({...noticeConfig, active: false})} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white">Fechar</button></div></div>}
+                    {noticeConfig.active && !showRobot && <div className="fixed inset-0 z-[8000] bg-black/80 flex items-center justify-center p-6"><div className="bg-zinc-900 p-6 rounded-3xl max-w-xs text-center border border-zinc-800"><h3 className="font-bold text-white text-lg mb-2">{noticeConfig.title}</h3><p className="text-zinc-400 text-sm mb-6 leading-relaxed">{noticeConfig.message}</p><button onClick={() => setNoticeConfig({...noticeConfig, active: false})} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white active:scale-95 transition-transform">Fechar</button></div></div>}
 
                     <div className="flex-1 overflow-y-auto no-scrollbar relative">
                         {activeTab === 'today' && <TodayView key="today" apps={apps} highlights={highlights} quickAccess={quickAccess} onProfile={() => setShowProfile(true)} onSettings={() => setShowSettings(true)} onApp={setSelectedApp} onQuickAccess={handleQuickAccess} isAdmin={isAdmin} profileImage={profileImage} themeMode={theme} accentColor={accentColor} />}
@@ -869,13 +988,13 @@
                             onSchedule={() => { setShowSettings(false); setShowScheduled(true); }}
                             onQuickAccessManager={() => { setShowSettings(false); setShowQuickAccessManager(true); }}
                             maintenance={isMaintenance}
-                            toggleMaintenance={() => {}}
+                            toggleMaintenance={toggleMaintenance}
                             noticeConfig={noticeConfig}
                             setNoticeConfig={setNoticeConfig}
                         />
                     )}
 
-                    {showAdminModal && <AdminAppModal editingApp={editingApp} apps={apps} onClose={() => setShowAdminModal(false)} accentColor={accentColor} />}
+                    {showAdminModal && <AdminAppModal editingApp={editingApp} onClose={() => setShowAdminModal(false)} accentColor={accentColor} />}
                     {showHighlightModal && <HighlightModal editingHighlight={editingHighlight} apps={apps} onClose={() => setShowHighlightModal(false)} accentColor={accentColor} />}
                     {showScheduled && <ScheduledView apps={apps} highlights={highlights} onClose={() => setShowScheduled(false)} onEditApp={(a) => { setEditingApp(a); setShowScheduled(false); setShowAdminModal(true); }} onEditHigh={(h) => { setEditingHighlight(h); setShowScheduled(false); setShowHighlightModal(true); }} accentColor={accentColor} />}
                     {showQuickAccessManager && <QuickAccessManager quickAccess={quickAccess} onClose={() => setShowQuickAccessManager(false)} accentColor={accentColor} />}
