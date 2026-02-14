@@ -65,7 +65,7 @@
         .view-animate { animation: softFade 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
         .animate-spring { animation: springUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards; }
         .animate-float { animation: floatBot 5s ease-in-out infinite; }
-        .animate-shake { animation: shake 0.3s ease-in-out; }
+        .animate-shake { animation: shake 0.3s eaze-in-out; }
         
         .onyx-card {
             background-color: #0c0c0e;
@@ -137,7 +137,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const APP_VERSION = "6.1.0 - Features Restored"; 
+        const APP_VERSION = "6.4.1 - Fix Syntax Errors"; 
 
         const firebaseConfig = {
             apiKey: "AIzaSyDcWSyP6S7LDuGQ1ZjFqKAHCZ8mjwJhEKY",
@@ -218,11 +218,17 @@
         
         function AppListItem({ app, onClick, isAdmin, lockedAppId, now, themeMode, accentColor }) { 
             const colors = THEMES[themeMode] || THEMES.amoled; 
-            const isPreOrder = app.scheduledAt && now < app.scheduledAt; 
-            const unlockTime = app.unlockSurpriseAt || app.scheduledAt; 
-            const isEffectiveLocked = app.isLocked && (!unlockTime || now < unlockTime); 
-            const isShake = lockedAppId === app.id; 
             
+            // LÓGICA MESTRA DE AGENDAMENTO
+            const isFuture = app.scheduledAt && now < app.scheduledAt;
+            
+            // Modo "Em Breve" (Aguarda) ativa se: ainda é futuro OU (Modo Oculto está ativo E ainda é futuro)
+            const isPreOrder = isFuture; 
+            
+            // Modo "Confidencial" ativa se: Modo Segredo/Bloqueado ativo E ainda é futuro
+            const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
+            
+            const isShake = lockedAppId === app.id; 
             const handleQuickDownload = (e) => { e.stopPropagation(); if (isPreOrder) return; playSound('click'); openSystemLink(app.downloadUrl); }; 
             
             return (
@@ -265,9 +271,9 @@
 
         function SearchAppCard({ app, onClick, now, themeMode, accentColor }) { 
             const colors = THEMES[themeMode] || THEMES.amoled; 
-            const isPreOrder = app.scheduledAt && now < app.scheduledAt; 
-            const unlockTime = app.unlockSurpriseAt || app.scheduledAt; 
-            const isEffectiveLocked = app.isLocked && (!unlockTime || now < unlockTime); 
+            const isFuture = app.scheduledAt && now < app.scheduledAt;
+            const isPreOrder = isFuture; 
+            const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
             
             const handleDownload = (e) => { e.stopPropagation(); if(isPreOrder) return; playSound('click'); openSystemLink(app.downloadUrl); }; 
             
@@ -318,13 +324,28 @@
 
         function QuickAccessCard({ icon, label, title, onClick }) { return (<div onClick={onClick} className="onyx-card w-40 h-40 rounded-[32px] p-5 flex flex-col justify-between shrink-0 snap-start active:scale-95 transition-transform cursor-pointer relative overflow-hidden group"><div className="w-10 h-10 rounded-full border border-zinc-800 bg-black flex items-center justify-center text-zinc-300 group-hover:text-white transition-colors z-10"><Icon name={icon || 'Zap'} size={18} /></div><div className="z-10"><p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{label}</p><h3 className="text-xl font-bold text-white leading-tight">{title}</h3></div></div>); }
         
-        function CollectionModal({ collection, apps, onClose, onApp, accentColor }) { const now = Date.now(); const filteredApps = apps.filter(a => { if (collection.actionType === 'filter') { return a.category === collection.actionValue && (!a.scheduledAt || now >= a.scheduledAt || a.isVisibleBeforeLaunch); } return false; }); return (<div className="fixed inset-0 z-[150] bg-black view-animate flex flex-col"><header className="px-6 pt-14 pb-4 flex justify-between items-center bg-black/90 backdrop-blur-xl sticky top-0 z-20"><div><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{collection.label}</p><h1 className="text-3xl font-extrabold tracking-tight text-white">{collection.title}</h1></div><button onClick={onClose} style={{color: accentColor}} className="w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center font-bold"><Icon name="X" size={20} /></button></header><div className="p-6 space-y-2 overflow-y-auto pb-40">{filteredApps.length === 0 ? (<div className="text-center text-zinc-500 mt-10">Nenhum app encontrado nesta coleção.</div>) : (filteredApps.map(app => (<AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode="amoled" accentColor={accentColor} />)))}</div></div>); }
+        function CollectionModal({ collection, apps, onClose, onApp, accentColor }) { 
+            const now = Date.now(); 
+            const filteredApps = apps.filter(a => { 
+                const isFuture = a.scheduledAt && now < a.scheduledAt;
+                if (collection.actionType === 'filter') { 
+                    // Só aparece em coleções normais se: Já lançou (mesmo se as flags de segredo estiverem ligadas, elas perdem o efeito após a data)
+                    const hasLaunched = !isFuture;
+                    const releasedOrVisible = hasLaunched || a.isVisibleBeforeLaunch;
+                    return a.category === collection.actionValue && releasedOrVisible && hasLaunched; 
+                } 
+                return false; 
+            }); 
+            return (<div className="fixed inset-0 z-[150] bg-black view-animate flex flex-col"><header className="px-6 pt-14 pb-4 flex justify-between items-center bg-black/90 backdrop-blur-xl sticky top-0 z-20"><div><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{collection.label}</p><h1 className="text-3xl font-extrabold tracking-tight text-white">{collection.title}</h1></div><button onClick={onClose} style={{color: accentColor}} className="w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center font-bold"><Icon name="X" size={20} /></button></header><div className="p-6 space-y-2 overflow-y-auto pb-40">{filteredApps.length === 0 ? (<div className="text-center text-zinc-500 mt-10">Nenhum app encontrado nesta coleção.</div>) : (filteredApps.map(app => (<AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode="amoled" accentColor={accentColor} />)))}</div></div>); 
+        }
 
         function AppDetail({ app, onClose, themeMode, accentColor }) {
             const now = Date.now();
             const colors = THEMES[themeMode] || THEMES.amoled;
-            const isPreOrder = app.scheduledAt && now < app.scheduledAt;
-            const isEffectiveLocked = app.isLocked && (!app.unlockSurpriseAt && (!app.scheduledAt || now < app.scheduledAt));
+            const isFuture = app.scheduledAt && now < app.scheduledAt;
+            const isPreOrder = isFuture;
+            const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture;
+            
             const [showWarning, setShowWarning] = useState(!!app.hasWarning);
             const [reviews, setReviews] = useState([]);
             const [userRating, setUserRating] = useState(0);
@@ -391,7 +412,7 @@
                 <div className={`fixed inset-0 z-[100] ${colors.bg} ${colors.text} view-animate flex flex-col overflow-y-auto pb-10`}>
                     {showWarning && (
                         <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-md flex items-center justify-center p-8 animate-spring">
-                            <div className={`${colors.card} p-6 rounded-[30px] w-full max-w-sm shadow-2xl text-center border ${colors.border}`}>
+                            <div className={`${colors.card} p-6 rounded-[30px] w-full max-sm shadow-2xl text-center border ${colors.border}`}>
                                 <div className="w-12 h-12 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="AlertTriangle" className="text-yellow-500" size={24} /></div>
                                 <h3 className="font-bold text-lg mb-2">Atenção</h3>
                                 <p className={`${colors.subtext} text-sm mb-6 leading-relaxed`}>{app.warningMessage}</p>
@@ -503,16 +524,31 @@
             
             const stories = activeHighlights.filter(h => !h.displayMode || h.displayMode === 'story'); 
             const widgets = activeHighlights.filter(h => h.displayMode === 'widget'); 
-            const comingSoonApps = apps.filter(a => a.scheduledAt && now < a.scheduledAt && a.isVisibleBeforeLaunch).sort((a,b) => a.scheduledAt - b.scheduledAt).slice(0, 3); 
-            const updatesApps = apps.filter(a => a.lastUpdated && (now - a.lastUpdated < 86400000)).sort((a,b) => b.lastUpdated - a.lastUpdated); 
-            const releasedApps = apps.filter(a => !a.scheduledAt || now >= a.scheduledAt); 
+            
+            // FILTRO DE AGENDAMENTO (RIGOROSO)
+            // Está "Em Breve" apenas se a data de agendamento for maior que a data atual.
+            const comingSoonApps = apps.filter(a => {
+                const isFuture = a.scheduledAt && now < a.scheduledAt;
+                return isFuture; 
+            }).sort((a,b) => a.scheduledAt - b.scheduledAt).slice(0, 3); 
+
+            // Está "Lançado" se a data atual for maior ou igual ao agendamento.
+            // Ignora isSecret/isHidden se a data já chegou.
+            const releasedApps = apps.filter(a => {
+                const hasLaunched = !a.scheduledAt || now >= a.scheduledAt;
+                return hasLaunched;
+            }); 
+
+            const updatesApps = releasedApps.filter(a => a.lastUpdated && (now - a.lastUpdated < 86400000)); 
+
             const dateObj = new Date(); 
             const dayName = dateObj.toLocaleDateString('pt-PT', { weekday: 'long' }).toUpperCase(); 
             const dayNum = dateObj.getDate(); 
 
             const handleAppClick = (app) => { 
-                const unlockTime = app.unlockSurpriseAt || app.scheduledAt; 
-                const isEffectiveLocked = app.isLocked && (!unlockTime || now < unlockTime); 
+                const isFuture = app.scheduledAt && now < app.scheduledAt;
+                // Só bloqueia visualmente se for no futuro
+                const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
                 if (isEffectiveLocked) { setLockedAppId(app.id); playSound('lock'); setTimeout(() => setLockedAppId(null), 500); return; } 
                 onApp(app); 
             };
@@ -610,7 +646,10 @@
         function CategorizedView({ title, categoryFilter, apps, onApp, themeMode, accentColor }) {
             const now = Date.now();
             const colors = THEMES[themeMode] || THEMES.amoled;
-            const filtered = apps.filter(a => a.category === categoryFilter && (!a.scheduledAt || now >= a.scheduledAt || a.isVisibleBeforeLaunch));
+            const filtered = apps.filter(a => {
+                const hasLaunched = !a.scheduledAt || now >= a.scheduledAt;
+                return a.category === categoryFilter && hasLaunched;
+            });
             return (
                 <div className={`view-animate ${colors.bg} min-h-screen pb-40 relative`}>
                     <header className={`pt-16 px-6 pb-6 sticky top-0 z-40 ${colors.bg}/90 backdrop-blur-md`}>
@@ -631,7 +670,10 @@
             const [query, setQuery] = useState(''); 
             const now = Date.now(); 
             const colors = THEMES[themeMode] || THEMES.amoled;
-            const filtered = apps.filter(a => a.name.toLowerCase().includes(query.toLowerCase()) && (!a.scheduledAt || now >= a.scheduledAt || a.isVisibleBeforeLaunch)); 
+            const filtered = apps.filter(a => {
+                const hasLaunched = !a.scheduledAt || now >= a.scheduledAt;
+                return a.name.toLowerCase().includes(query.toLowerCase()) && hasLaunched;
+            }); 
             
             return (
                 <div className={`view-animate ${colors.bg} min-h-screen transition-colors duration-300 relative`}>
@@ -819,7 +861,7 @@
             const [newShotUrl, setNewShotUrl] = useState("");
 
             useEffect(() => { 
-                const base = { name: '', developer: '', version: '', icon: '', category: 'Apps', screenshots: [], downloadUrl: '', description: '', rating: '4+', updateNews: '', isMod: false, scheduledAt: '', isVisibleBeforeLaunch: false, hasWarning: false, warningMessage: '', platform: 'Mobile', isLocked: false, unlockSurpriseAt: '', dependencyName: '', dependencyUrl: '', dependencyIcon: '' }; 
+                const base = { name: '', developer: '', version: '', icon: '', category: 'Apps', screenshots: [], downloadUrl: '', description: '', rating: '4+', updateNews: '', isMod: false, scheduledAt: '', isVisibleBeforeLaunch: false, hasWarning: false, warningMessage: '', platform: 'Mobile', isLocked: false, isSecret: false, isHidden: false, unlockSurpriseAt: '', dependencyName: '', dependencyUrl: '', dependencyIcon: '' }; 
                 if (editingApp) { setForm({ ...base, ...editingApp, screenshots: editingApp.screenshots || [], scheduledAt: toLocalDatetimeString(editingApp.scheduledAt), unlockSurpriseAt: toLocalDatetimeString(editingApp.unlockSurpriseAt) }); } 
                 else setForm(base); 
             }, [editingApp]); 
@@ -847,6 +889,24 @@
                     <div className="p-6 space-y-5 max-w-xl mx-auto w-full pb-20">
                         <InputField label="Nome" value={form.name} onChange={v => setForm({...form, name: v})} accentColor={accentColor} />
                         <InputField label="Agendar Lançamento (Vazio p/ agora)" type="datetime-local" value={form.scheduledAt} onChange={v => setForm({...form, scheduledAt: v})} accentColor={accentColor} />
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                             <div className="flex justify-between items-center bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold uppercase text-zinc-500">Modo Segredo</span>
+                                    <span className="text-[8px] text-zinc-600 font-bold uppercase">Auto-Revelação</span>
+                                </div>
+                                <IOSSwitch checked={form.isSecret} onChange={v => setForm({...form, isSecret: v})} accentColor={accentColor} />
+                            </div>
+                            <div className="flex justify-between items-center bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold uppercase text-zinc-500">Modo Oculto</span>
+                                    <span className="text-[8px] text-zinc-600 font-bold uppercase">Auto-Revelação</span>
+                                </div>
+                                <IOSSwitch checked={form.isHidden} onChange={v => setForm({...form, isHidden: v})} accentColor={accentColor} />
+                            </div>
+                        </div>
+
                         <InputField label="Desenvolvedor" value={form.developer} onChange={v => setForm({...form, developer: v})} accentColor={accentColor} />
                         <InputField label="Ícone (URL)" value={form.icon} onChange={v => setForm({...form, icon: v})} accentColor={accentColor} />
                         <InputField label="Download URL" value={form.downloadUrl} onChange={v => setForm({...form, downloadUrl: v})} accentColor={accentColor} />
