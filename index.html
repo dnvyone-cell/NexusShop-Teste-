@@ -65,22 +65,12 @@
         .view-animate { animation: softFade 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
         .animate-spring { animation: springUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards; }
         .animate-float { animation: floatBot 5s ease-in-out infinite; }
-        .animate-shake { animation: shake 0.3s eaze-in-out; }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
         
         .onyx-card {
             background-color: #0c0c0e;
             border: 1px solid #1f1f23;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
-
-        .onyx-button {
-            background-color: transparent;
-            border: 1px solid #27272a; 
-            color: #e4e4e7;
-        }
-        .onyx-button:active {
-            background-color: #18181b;
-            transform: scale(0.95);
         }
 
         .glass-dock {
@@ -89,6 +79,14 @@
             -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255, 255, 255, 0.08);
             box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+        }
+
+        .chat-bubble-me {
+            border-radius: 20px 20px 4px 20px;
+        }
+
+        .chat-bubble-them {
+            border-radius: 20px 20px 20px 4px;
         }
         
         .search-bar-floating {
@@ -103,11 +101,7 @@
         .btn-fluid:active { transform: scale(0.92); }
 
         .app-icon { border-radius: 22%; position: relative; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.1); }
-        .yt-iframe { pointer-events: none; width: 100%; height: 100%; object-fit: cover; }
         
-        .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; }
-        .file-input-wrapper input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; }
-
         .badge-mod {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
             color: white;
@@ -137,7 +131,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const APP_VERSION = "6.4.1 - Fix Syntax Errors"; 
+        const APP_VERSION = "7.0.0 - Global Chat Update"; 
 
         const firebaseConfig = {
             apiKey: "AIzaSyDcWSyP6S7LDuGQ1ZjFqKAHCZ8mjwJhEKY",
@@ -154,7 +148,7 @@
         
         const DB_APP_ID = 'nexus-hub-permanent-vault';
 
-        const POPULAR_ICONS = ["Zap", "Star", "Flame", "Heart", "Gamepad2", "Trophy", "Award", "Crown", "Diamond", "Rocket", "Ghost", "Skull", "Joystick", "Dice5", "Swords", "Crosshair", "Target", "Monitor", "Smartphone", "Tablet", "Laptop", "Watch", "Headphones", "Speaker", "Music", "Video", "Image", "Camera", "Film", "Tv", "Radio", "Mic", "DownloadCloud", "UploadCloud", "CloudLightning", "Wifi", "Bluetooth", "Settings", "User", "Search", "Menu", "Grid", "List", "Filter", "Layers", "Check", "X", "Plus", "Minus", "Info", "AlertTriangle", "Bell", "Calendar", "ShoppingBag", "CreditCard", "DollarSign", "Tag", "Bookmark", "MapPin", "Globe"];
+        const POPULAR_ICONS = ["Zap", "Star", "Flame", "Heart", "Gamepad2", "Trophy", "Award", "Crown", "Diamond", "Rocket", "Ghost", "Skull", "Joystick", "Dice5", "Swords", "Crosshair", "Target", "Monitor", "Smartphone", "Tablet", "Laptop", "Watch", "Headphones", "Speaker", "Music", "Video", "Image", "Camera", "Film", "Tv", "Radio", "Mic", "DownloadCloud", "UploadCloud", "CloudLightning", "Wifi", "Bluetooth", "Settings", "User", "Search", "Menu", "Grid", "List", "Filter", "Layers", "Check", "X", "Plus", "Minus", "Info", "AlertTriangle", "Bell", "Calendar", "ShoppingBag", "CreditCard", "DollarSign", "Tag", "Bookmark", "MapPin", "Globe", "MessageCircle", "Send"];
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const initAudio = () => { if (audioCtx.state === 'suspended') audioCtx.resume(); };
@@ -180,7 +174,7 @@
             light: { bg: 'bg-[#f2f2f7]', text: 'text-black', card: 'bg-white', border: 'border-black/5', subtext: 'text-zinc-500', input: 'bg-white', dock: 'bg-white/80' } 
         };
 
-        const openSystemLink = (url) => { playSound('click'); if (!url) return alert("Link indisponível."); window.open(url, '_blank'); };
+        const openSystemLink = (url) => { playSound('click'); if (!url) return; window.open(url, '_blank'); };
         const toLocalDatetimeString = (timestamp) => { 
             if (!timestamp) return ""; 
             const date = new Date(timestamp); 
@@ -192,10 +186,11 @@
 
         // Components
         function Icon({ name, size = 24, className = "", style = {} }) { const containerRef = useRef(null); useEffect(() => { if (window.lucide && containerRef.current && name) { const kebabName = name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase(); containerRef.current.innerHTML = `<i data-lucide="${kebabName}"></i>`; window.lucide.createIcons({ root: containerRef.current, attrs: { strokeWidth: 2, width: size, height: size, class: className, style: style } }); } }, [name, size, className, style]); return <span ref={containerRef} className="flex items-center justify-center pointer-events-none"></span>; }
+        
         function NexusBot({ mode = 'static', message, accentColor, onComplete }) { useEffect(() => { if (mode === 'greeting') { const t = setTimeout(onComplete, 2500); return () => clearTimeout(t); } }, [mode, onComplete]); if (mode !== 'greeting') return null; return (<div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center view-animate"><div className="animate-float relative"><div className="w-24 h-24 bg-zinc-900 rounded-[30px] border-[2px] border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex items-center justify-center relative overflow-hidden"><div className="flex gap-4"><div className="w-4 h-6 rounded-full animate-blink" style={{backgroundColor: accentColor}}></div><div className="w-4 h-6 rounded-full animate-blink" style={{backgroundColor: accentColor}}></div></div></div></div><h2 className="mt-8 text-xl font-bold text-white tracking-tight" dangerouslySetInnerHTML={{ __html: message }}></h2></div>); }
         function IOSSwitch({ checked, onChange, accentColor }) { return (<div onClick={() => { playSound('click'); onChange(!checked); }} className={`relative w-[52px] h-[32px] rounded-full transition-all duration-300 cursor-pointer shadow-inner ${checked ? '' : 'bg-zinc-800'}`} style={{ backgroundColor: checked ? accentColor : undefined }}><div className={`absolute top-[2px] w-[28px] h-[28px] bg-white rounded-full shadow-lg transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) ${checked ? 'left-[22px]' : 'left-[2px]'}`}></div></div>); }
         function InputField({ label, value, onChange, type = "text", placeholder = "", themeMode, accentColor }) { const colors = THEMES[themeMode] || THEMES.amoled; return (<div className="mb-5 w-full text-left group"><label className={`block text-[10px] font-bold mb-2 uppercase tracking-wide ml-3 transition-colors ${colors.subtext} group-focus-within:${colors.text}`}>{label}</label><input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={`w-full rounded-[20px] px-6 py-4 ${colors.input} ${colors.text} placeholder:opacity-30 border border-transparent outline-none font-medium text-sm transition-all focus:border-[${accentColor}] focus:shadow-[0_0_0_4px_rgba(255,255,255,0.05)]`} style={{ caretColor: accentColor }} /></div>); }
-        function TabButton({ active, icon, label, onClick, themeMode, accentColor }) { const colors = THEMES[themeMode] || THEMES.amoled; return (<button onClick={() => { playSound('click'); onClick(); }} className="flex flex-col items-center justify-center flex-1 gap-1 btn-fluid outline-none group py-1"><div className={`transition-all duration-300 ${active ? '-translate-y-1' : ''}`} style={{ color: active ? accentColor : undefined }} className={!active ? colors.subtext : ''}><Icon name={icon} size={22} strokeWidth={active ? 2.5 : 2} /></div><span className={`text-[9px] font-bold uppercase tracking-widest ${active ? 'opacity-100' : 'opacity-40'} transition-opacity`} style={{ color: active ? accentColor : undefined }}>{label}</span></button>); }
+        function TabButton({ active, icon, label, onClick, themeMode, accentColor }) { const colors = THEMES[themeMode] || THEMES.amoled; return (<button onClick={() => { playSound('click'); onClick(); }} className="flex flex-col items-center justify-center flex-1 gap-1 btn-fluid outline-none group py-1"><div className={`transition-all duration-300 ${active ? '-translate-y-1' : ''}`} style={{ color: active ? accentColor : undefined }}><Icon name={icon} size={22} strokeWidth={active ? 2.5 : 2} className={!active ? colors.subtext : ''} /></div><span className={`text-[9px] font-bold uppercase tracking-widest ${active ? 'opacity-100' : 'opacity-40'} transition-opacity`} style={{ color: active ? accentColor : undefined }}>{label}</span></button>); }
         
         function VideoPlayer({ url, image }) { 
             const ytId = useMemo(() => getYouTubeID(url), [url]); 
@@ -215,19 +210,106 @@
             } 
             return <video src={url} poster={image} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />; 
         }
+
+        // --- ABA DE CHAT GLOBAL ---
+        function ChatView({ themeMode, accentColor, profileImage }) {
+            const colors = THEMES[themeMode] || THEMES.amoled;
+            const [messages, setMessages] = useState([]);
+            const [text, setText] = useState("");
+            const [loading, setLoading] = useState(true);
+            const scrollRef = useRef(null);
+            const currentUser = localStorage.getItem('nexus_username') || "Membro";
+
+            useEffect(() => {
+                const unsub = db.collection('artifacts').doc(DB_APP_ID)
+                    .collection('public').doc('data').collection('chat_global')
+                    .orderBy('timestamp', 'asc')
+                    .limitToLast(50)
+                    .onSnapshot(snap => {
+                        setMessages(snap.docs.map(d => ({id: d.id, ...d.data()})));
+                        setLoading(false);
+                        setTimeout(() => {
+                            if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                        }, 100);
+                    });
+                return () => unsub();
+            }, []);
+
+            const handleSend = async () => {
+                if (!text.trim()) return;
+                const msgText = text;
+                setText("");
+                try {
+                    await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('chat_global').add({
+                        username: currentUser,
+                        text: msgText,
+                        timestamp: Date.now(),
+                        userImage: profileImage || ""
+                    });
+                    playSound('success');
+                } catch(e) { console.error(e); }
+            };
+
+            return (
+                <div className={`view-animate flex flex-col h-screen pb-40 ${colors.bg}`}>
+                    <header className={`pt-16 px-6 pb-4 sticky top-0 z-40 ${colors.bg}/90 backdrop-blur-md border-b ${colors.border}`}>
+                        <h1 className={`text-4xl font-black ${colors.text} tracking-tighter`}>Nexus Chat</h1>
+                        <p className={`text-[10px] font-bold ${colors.subtext} uppercase tracking-widest`}>Canal Global</p>
+                    </header>
+                    
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-4 no-scrollbar">
+                        {loading ? (
+                            <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{borderColor: accentColor}}></div></div>
+                        ) : messages.length === 0 ? (
+                            <div className="text-center py-20 opacity-30 font-bold">Nenhuma mensagem. Comece a conversa!</div>
+                        ) : (
+                            messages.map(m => {
+                                const isMe = m.username === currentUser;
+                                return (
+                                    <div key={m.id} className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'} animate-spring`}>
+                                        <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 shrink-0 border border-white/10 shadow-sm">
+                                            {m.userImage ? <img src={m.userImage} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold">{m.username?.[0]}</div>}
+                                        </div>
+                                        <div className={`max-w-[75%] p-3 shadow-md ${isMe ? `chat-bubble-me text-white` : `${colors.card} chat-bubble-them ${colors.text} border ${colors.border}`}`} style={{ backgroundColor: isMe ? accentColor : undefined }}>
+                                            {!isMe && <p className="text-[9px] font-black uppercase tracking-tighter opacity-50 mb-1">{m.username}</p>}
+                                            <p className="text-sm font-medium leading-relaxed break-words">{m.text}</p>
+                                            <p className={`text-[8px] mt-1 opacity-40 text-right ${isMe ? 'text-white' : colors.subtext}`}>
+                                                {new Date(m.timestamp).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[92%] max-w-[440px] z-50">
+                        <div className={`search-bar-floating rounded-[28px] p-2 flex items-center gap-2 border ${colors.border}`}>
+                            <input 
+                                className="bg-transparent flex-1 px-4 py-2 text-sm text-white outline-none placeholder:text-zinc-500 font-medium" 
+                                placeholder="Diz algo à comunidade..." 
+                                value={text} 
+                                onChange={e => setText(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleSend()}
+                            />
+                            <button 
+                                onClick={handleSend}
+                                style={{ backgroundColor: accentColor }}
+                                className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform"
+                            >
+                                <Icon name="Send" size={18} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
         
         function AppListItem({ app, onClick, isAdmin, lockedAppId, now, themeMode, accentColor }) { 
             const colors = THEMES[themeMode] || THEMES.amoled; 
-            
-            // LÓGICA MESTRA DE AGENDAMENTO
             const isFuture = app.scheduledAt && now < app.scheduledAt;
-            
-            // Modo "Em Breve" (Aguarda) ativa se: ainda é futuro OU (Modo Oculto está ativo E ainda é futuro)
             const isPreOrder = isFuture; 
-            
-            // Modo "Confidencial" ativa se: Modo Segredo/Bloqueado ativo E ainda é futuro
             const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
-            
             const isShake = lockedAppId === app.id; 
             const handleQuickDownload = (e) => { e.stopPropagation(); if (isPreOrder) return; playSound('click'); openSystemLink(app.downloadUrl); }; 
             
@@ -274,7 +356,6 @@
             const isFuture = app.scheduledAt && now < app.scheduledAt;
             const isPreOrder = isFuture; 
             const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
-            
             const handleDownload = (e) => { e.stopPropagation(); if(isPreOrder) return; playSound('click'); openSystemLink(app.downloadUrl); }; 
             
             return (
@@ -329,10 +410,8 @@
             const filteredApps = apps.filter(a => { 
                 const isFuture = a.scheduledAt && now < a.scheduledAt;
                 if (collection.actionType === 'filter') { 
-                    // Só aparece em coleções normais se: Já lançou (mesmo se as flags de segredo estiverem ligadas, elas perdem o efeito após a data)
                     const hasLaunched = !isFuture;
-                    const releasedOrVisible = hasLaunched || a.isVisibleBeforeLaunch;
-                    return a.category === collection.actionValue && releasedOrVisible && hasLaunched; 
+                    return a.category === collection.actionValue && hasLaunched; 
                 } 
                 return false; 
             }); 
@@ -388,23 +467,6 @@
                 } catch(e) { alert("Erro ao enviar: " + e.message); }
             };
 
-            const handleShare = async () => {
-                playSound('click');
-                const shareData = { title: `Nexus - ${app.name}`, text: `Veja este app incrível na Nexus Store: ${app.name}`, url: window.location.href };
-                try {
-                    if (navigator.share) await navigator.share(shareData);
-                    else {
-                        const dummy = document.createElement('input');
-                        document.body.appendChild(dummy);
-                        dummy.value = window.location.href;
-                        dummy.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(dummy);
-                        alert("Link copiado!");
-                    }
-                } catch (err) { console.log("Erro ao partilhar:", err); }
-            };
-
             const displayApp = isEffectiveLocked ? { ...app, name: "???", developer: "???", description: "Conteúdo confidencial.", icon: null } : app;
             const hasDependency = app.dependencyUrl && app.dependencyName;
 
@@ -423,7 +485,7 @@
 
                     <div className={`sticky top-0 z-30 flex justify-between items-center p-6 ${colors.bg}/80 backdrop-blur-xl`}>
                         <button onClick={() => { playSound('click'); onClose(); }} style={{color: accentColor}} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center backdrop-blur-md btn-fluid`}><Icon name="ChevronLeft" size={24} /></button>
-                        <button onClick={handleShare} style={{color: accentColor}} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center backdrop-blur-md btn-fluid`}><Icon name="Share" size={20} /></button>
+                        <button style={{color: accentColor}} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center backdrop-blur-md btn-fluid`}><Icon name="Share" size={20} /></button>
                     </div>
 
                     <div className="px-6 animate-spring">
@@ -507,7 +569,7 @@
                                         </button>
                                     ))}
                                 </div>
-                                <textarea className={`w-full ${colors.input} rounded-xl p-3 text-sm ${colors.text} outline-none border ${colors.border} focus:border-white/20 h-24 mb-3 resize-none`} placeholder={currentUser ? "Escreva sua opinião..." : "Faça login para comentar"} value={commentText} onChange={e => setCommentText(e.target.value)} disabled={!currentUser} />
+                                <textarea className={`w-full ${colors.input} rounded-xl p-3 text-sm ${colors.text} outline-none border ${colors.border} h-24 mb-3 resize-none`} placeholder={currentUser ? "Escreva sua opinião..." : "Faça login para comentar"} value={commentText} onChange={e => setCommentText(e.target.value)} disabled={!currentUser} />
                                 {currentUser ? <button onClick={handleSubmitReview} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform">Enviar Avaliação</button> : <p className="text-center text-xs text-red-400 font-bold">Faça login para enviar</p>}
                             </div>
                         </div>
@@ -524,21 +586,8 @@
             
             const stories = activeHighlights.filter(h => !h.displayMode || h.displayMode === 'story'); 
             const widgets = activeHighlights.filter(h => h.displayMode === 'widget'); 
-            
-            // FILTRO DE AGENDAMENTO (RIGOROSO)
-            // Está "Em Breve" apenas se a data de agendamento for maior que a data atual.
-            const comingSoonApps = apps.filter(a => {
-                const isFuture = a.scheduledAt && now < a.scheduledAt;
-                return isFuture; 
-            }).sort((a,b) => a.scheduledAt - b.scheduledAt).slice(0, 3); 
-
-            // Está "Lançado" se a data atual for maior ou igual ao agendamento.
-            // Ignora isSecret/isHidden se a data já chegou.
-            const releasedApps = apps.filter(a => {
-                const hasLaunched = !a.scheduledAt || now >= a.scheduledAt;
-                return hasLaunched;
-            }); 
-
+            const comingSoonApps = apps.filter(a => a.scheduledAt && now < a.scheduledAt).sort((a,b) => a.scheduledAt - b.scheduledAt).slice(0, 3); 
+            const releasedApps = apps.filter(a => !a.scheduledAt || now >= a.scheduledAt); 
             const updatesApps = releasedApps.filter(a => a.lastUpdated && (now - a.lastUpdated < 86400000)); 
 
             const dateObj = new Date(); 
@@ -547,7 +596,6 @@
 
             const handleAppClick = (app) => { 
                 const isFuture = app.scheduledAt && now < app.scheduledAt;
-                // Só bloqueia visualmente se for no futuro
                 const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
                 if (isEffectiveLocked) { setLockedAppId(app.id); playSound('lock'); setTimeout(() => setLockedAppId(null), 500); return; } 
                 onApp(app); 
@@ -695,7 +743,7 @@
                     <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-40">
                         <div className="search-bar-floating rounded-[24px] flex items-center px-4 py-3 gap-3">
                             <Icon name="Search" size={20} className="text-zinc-400" />
-                            <input className="bg-transparent flex-1 text-[16px] text-white outline-none placeholder:text-zinc-500 font-medium" placeholder="Jogos, Apps, Histórias..." value={query} onChange={(e) => setQuery(e.target.value)} autoFocus={false} />
+                            <input className="bg-transparent flex-1 text-[16px] text-white outline-none placeholder:text-zinc-500 font-medium" placeholder="Jogos, Apps, Histórias..." value={query} onChange={(e) => setQuery(e.target.value)} />
                             {query && (<button onClick={() => setQuery('')} className="bg-zinc-700 rounded-full p-1 text-black hover:bg-zinc-600 transition"><Icon name="X" size={12} /></button>)}
                         </div>
                     </div>
@@ -703,25 +751,23 @@
             ); 
         }
         
-        function QuickAccessManager({ quickAccess, onClose, accentColor }) { const [form, setForm] = useState({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); const [editingId, setEditingId] = useState(null); const [showIconPicker, setShowIconPicker] = useState(false); const [confirmDeleteId, setConfirmDeleteId] = useState(null); const handleSubmit = async () => { if(!form.title) return; try { const coll = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('quickAccess'); if(editingId) { await coll.doc(editingId).update(form); setEditingId(null); } else { await coll.add(form); } setForm({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); playSound('success'); } catch(e) { console.log(e); } }; const executeDelete = async (id) => { try { await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('quickAccess').doc(id).delete(); playSound('success'); setConfirmDeleteId(null); } catch(e) { console.log(e); } }; const edit = (item) => { setForm(item); setEditingId(item.id); }; return (<div className="fixed inset-0 z-[250] bg-black view-animate flex flex-col"><header className="px-6 pt-14 pb-4 flex justify-between items-center bg-zinc-900"><h2 className="text-xl font-bold text-white">Gerenciar Acesso Rápido</h2><button onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center"><Icon name="X" size={18} /></button></header><div className="flex-1 overflow-y-auto p-6 space-y-8"><div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 space-y-4"><h3 className="text-sm font-bold text-zinc-400 uppercase">{editingId ? 'Editar Botão' : 'Novo Botão'}</h3><input className="w-full bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Título (ex: Novos Jogos)" value={form.title} onChange={e => setForm({...form, title: e.target.value})} /><div className="flex gap-2"><input className="flex-1 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Rótulo (ex: DESTAQUE)" value={form.label} onChange={e => setForm({...form, label: e.target.value})} /><input className="w-1/3 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Ordem" type="number" value={form.order} onChange={e => setForm({...form, order: parseInt(e.target.value)})} /></div><div className="relative"><label className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Ícone</label><div className="flex gap-2"><input className="flex-1 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Nome do Ícone (ex: Zap)" value={form.icon} onChange={e => setForm({...form, icon: e.target.value})} /><button onClick={() => setShowIconPicker(!showIconPicker)} className="w-12 bg-black rounded-xl border border-zinc-800 flex items-center justify-center text-zinc-300 active:bg-zinc-800"><Icon name={form.icon || 'HelpCircle'} /></button></div>{showIconPicker && (<div className="absolute top-full left-0 right-0 mt-2 bg-zinc-800 border border-zinc-700 p-3 rounded-2xl z-20 shadow-2xl grid grid-cols-6 gap-2 max-h-48 overflow-y-auto">{POPULAR_ICONS.map(iconName => (<button key={iconName} onClick={() => { setForm({...form, icon: iconName}); setShowIconPicker(false); }} className={`p-2 rounded-lg flex items-center justify-center hover:bg-black transition-colors ${form.icon === iconName ? 'bg-black text-white' : 'text-zinc-400'}`}><Icon name={iconName} size={20} /></button>))}</div>)}</div><div><label className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Tipo de Ação</label><select className="w-full bg-black text-white rounded-xl p-3 text-sm outline-none" value={form.actionType} onChange={e => setForm({...form, actionType: e.target.value})}><option value="filter">Abrir Coleção (Filtro)</option><option value="link">Abrir Link Externo</option><option value="tab">Mudar Aba (Principal)</option></select></div><input className="w-full bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder={form.actionType === 'filter' ? 'Nome da Categoria (ex: Jogos)' : (form.actionType === 'link' ? 'URL (https://...)' : 'Nome da Aba (today, search)')} value={form.actionValue} onChange={e => setForm({...form, actionValue: e.target.value})} /><button onClick={handleSubmit} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-sm">{editingId ? 'Atualizar' : 'Criar'}</button>{editingId && <button onClick={() => { setEditingId(null); setForm({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); }} className="w-full py-2 text-zinc-500 text-xs">Cancelar Edição</button>}</div><div className="space-y-2"><h3 className="text-sm font-bold text-zinc-400 uppercase">Botões Ativos</h3>{quickAccess.sort((a,b) => a.order - b.order).map(item => (<div key={item.id} className="flex items-center justify-between bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-zinc-400"><Icon name={item.icon} size={14} /></div><div><p className="font-bold text-white text-sm">{item.title}</p><p className="text-[10px] text-zinc-500">{item.actionType}: {item.actionValue}</p></div></div><div className="flex gap-2"><button onClick={() => edit(item)} className="p-2 bg-zinc-800 rounded-lg text-white"><Icon name="Edit2" size={14} /></button>{confirmDeleteId === item.id ? (<button onClick={() => executeDelete(item.id)} className="px-3 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold animate-spring">Confirmar?</button>) : (<button onClick={() => { playSound('click'); setConfirmDeleteId(item.id); }} className="p-2 bg-red-900/30 text-red-500 rounded-lg"><Icon name="Trash" size={14} /></button>)}</div></div>))}</div></div></div>); }
+        function QuickAccessManager({ quickAccess, onClose, accentColor }) { const [form, setForm] = useState({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); const [editingId, setEditingId] = useState(null); const [showIconPicker, setShowIconPicker] = useState(false); const [confirmDeleteId, setConfirmDeleteId] = useState(null); const handleSubmit = async () => { if(!form.title) return; try { const coll = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('quickAccess'); if(editingId) { await coll.doc(editingId).update(form); setEditingId(null); } else { await coll.add(form); } setForm({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); playSound('success'); } catch(e) { console.log(e); } }; const executeDelete = async (id) => { try { await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('quickAccess').doc(id).delete(); playSound('success'); setConfirmDeleteId(null); } catch(e) { console.log(e); } }; const edit = (item) => { setForm(item); setEditingId(item.id); }; return (<div className="fixed inset-0 z-[250] bg-black view-animate flex flex-col"><header className="px-6 pt-14 pb-4 flex justify-between items-center bg-zinc-900"><h2 className="text-xl font-bold text-white">Gerenciar Acesso Rápido</h2><button onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center"><Icon name="X" size={18} /></button></header><div className="flex-1 overflow-y-auto p-6 space-y-8"><div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 space-y-4"><h3 className="text-sm font-bold text-zinc-400 uppercase">{editingId ? 'Editar Botão' : 'Novo Botão'}</h3><input className="w-full bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Título" value={form.title} onChange={e => setForm({...form, title: e.target.value})} /><div className="flex gap-2"><input className="flex-1 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Rótulo" value={form.label} onChange={e => setForm({...form, label: e.target.value})} /><input className="w-1/3 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Ordem" type="number" value={form.order} onChange={e => setForm({...form, order: parseInt(e.target.value)})} /></div><div className="relative"><label className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Ícone</label><div className="flex gap-2"><input className="flex-1 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Nome do Ícone" value={form.icon} onChange={e => setForm({...form, icon: e.target.value})} /><button onClick={() => setShowIconPicker(!showIconPicker)} className="w-12 bg-black rounded-xl border border-zinc-800 flex items-center justify-center text-zinc-300"><Icon name={form.icon || 'HelpCircle'} /></button></div>{showIconPicker && (<div className="absolute top-full left-0 right-0 mt-2 bg-zinc-800 border border-zinc-700 p-3 rounded-2xl z-20 shadow-2xl grid grid-cols-6 gap-2 max-h-48 overflow-y-auto">{POPULAR_ICONS.map(iconName => (<button key={iconName} onClick={() => { setForm({...form, icon: iconName}); setShowIconPicker(false); }} className={`p-2 rounded-lg flex items-center justify-center ${form.icon === iconName ? 'bg-black text-white' : 'text-zinc-400'}`}><Icon name={iconName} size={20} /></button>))}</div>)}</div><select className="w-full bg-black text-white rounded-xl p-3 text-sm outline-none" value={form.actionType} onChange={e => setForm({...form, actionType: e.target.value})}><option value="filter">Abrir Coleção</option><option value="link">Abrir Link Externo</option><option value="tab">Mudar Aba</option></select><input className="w-full bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Valor da Ação" value={form.actionValue} onChange={e => setForm({...form, actionValue: e.target.value})} /><button onClick={handleSubmit} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-sm">{editingId ? 'Atualizar' : 'Criar'}</button></div><div className="space-y-2">{quickAccess.sort((a,b) => a.order - b.order).map(item => (<div key={item.id} className="flex items-center justify-between bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-zinc-400"><Icon name={item.icon} size={14} /></div><div><p className="font-bold text-white text-sm">{item.title}</p></div></div><div className="flex gap-2"><button onClick={() => edit(item)} className="p-2 bg-zinc-800 rounded-lg text-white"><Icon name="Edit2" size={14} /></button><button onClick={() => setConfirmDeleteId(item.id)} className="p-2 bg-red-900/30 text-red-500 rounded-lg"><Icon name="Trash" size={14} /></button></div>{confirmDeleteId === item.id && <button onClick={() => executeDelete(item.id)} className="absolute bg-red-600 text-[8px] font-bold p-1 rounded right-10">OK?</button>}</div>))}</div></div></div>); }
         
         function SettingsModal({ onClose, accentColor, onAddApp, onAddStory, onSchedule, onQuickAccessManager, maintenance, toggleMaintenance, noticeConfig, setNoticeConfig }) { 
-            const [savingNotice, setSavingNotice] = useState(false); 
-            const saveNotice = async () => { playSound('click'); setSavingNotice(true); await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('config').set({ notice: noticeConfig }, { merge: true }); playSound('success'); setSavingNotice(false); alert("Salvo!"); }; 
             return (
                 <div className={`fixed inset-0 z-[200] bg-black view-animate flex flex-col`}>
                     <header className={`px-6 pt-14 pb-4 flex justify-between items-center`}>
                         <h1 className={`text-3xl font-extrabold tracking-tight text-white`}>Ajustes</h1>
-                        <button onClick={() => { playSound('click'); onClose(); }} style={{backgroundColor: `${accentColor}20`, color: accentColor}} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold`}><Icon name="X" size={20} /></button>
+                        <button onClick={onClose} style={{backgroundColor: `${accentColor}20`, color: accentColor}} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold`}><Icon name="X" size={20} /></button>
                     </header>
                     <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-20">
                         <section>
                             <h3 className={`text-xs font-bold uppercase tracking-wider mb-4 text-zinc-500 ml-2`}>Conteúdo</h3>
                             <div className={`rounded-3xl overflow-hidden bg-[#121212] border border-zinc-900 shadow-lg`}>
-                                <div onClick={() => { playSound('click'); onAddApp(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="PlusSquare" className="text-white" size={22} /><span className={`font-bold text-white`}>Adicionar App</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
-                                <div onClick={() => { playSound('click'); onAddStory(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Layout" className="text-white" size={22} /><span className={`font-bold text-white`}>Novo Destaque</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
-                                <div onClick={() => { playSound('click'); onQuickAccessManager(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Zap" className="text-white" size={22} /><span className={`font-bold text-white`}>Acesso Rápido</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
-                                <div onClick={() => { playSound('click'); onSchedule(); }} className={`p-5 flex items-center justify-between active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Clock" className="text-white" size={22} /><span className={`font-bold text-white`}>Gerenciar Itens</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                                <div onClick={onAddApp} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="PlusSquare" className="text-white" size={22} /><span className={`font-bold text-white`}>Adicionar App</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                                <div onClick={onAddStory} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Layout" className="text-white" size={22} /><span className={`font-bold text-white`}>Novo Destaque</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                                <div onClick={onQuickAccessManager} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Zap" className="text-white" size={22} /><span className={`font-bold text-white`}>Acesso Rápido</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                                <div onClick={onSchedule} className={`p-5 flex items-center justify-between active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Clock" className="text-white" size={22} /><span className={`font-bold text-white`}>Gerenciar Itens</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
                             </div>
                         </section>
                         <section>
@@ -729,15 +775,6 @@
                             <div className={`rounded-3xl overflow-hidden bg-[#121212] border border-zinc-900 shadow-lg p-5 flex items-center justify-between`}>
                                 <div className="flex items-center gap-3"><Icon name="AlertOctagon" className="text-white" size={22} /><span className={`font-bold text-white`}>Modo Manutenção</span></div>
                                 <IOSSwitch checked={maintenance} onChange={toggleMaintenance} accentColor={accentColor} />
-                            </div>
-                        </section>
-                        <section>
-                            <h3 className={`text-xs font-bold uppercase tracking-wider mb-4 text-zinc-500 ml-2`}>Aviso Global</h3>
-                            <div className={`p-5 rounded-3xl bg-[#121212] border border-zinc-900 space-y-4 shadow-lg`}>
-                                <div className="flex justify-between items-center"><span className={`text-sm font-bold text-white`}>Ativar Pop-up</span><IOSSwitch checked={noticeConfig.active} onChange={v => setNoticeConfig({...noticeConfig, active: v})} accentColor={accentColor} /></div>
-                                <input type="text" placeholder="Título" value={noticeConfig.title} onChange={e => setNoticeConfig({...noticeConfig, title: e.target.value})} className={`w-full bg-black rounded-[20px] p-3 text-sm text-white outline-none border border-zinc-800`} />
-                                <textarea rows="2" placeholder="Mensagem..." value={noticeConfig.message} onChange={e => setNoticeConfig({...noticeConfig, message: e.target.value})} className={`w-full bg-black rounded-[20px] p-3 text-sm text-white outline-none border border-zinc-800`} />
-                                <button onClick={saveNotice} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-sm shadow-md active:scale-95 transition-transform">Atualizar</button>
                             </div>
                         </section>
                     </div>
@@ -748,131 +785,53 @@
         function HighlightModal({ editingHighlight, apps, onClose, accentColor }) { 
             const [form, setForm] = useState({ type: 'standard', items: [{}, {}, {}], displayMode: 'story', cardSize: 'full', order: 1 }); 
             const [loading, setLoading] = useState(false); 
-            const [mosaicTab, setMosaicTab] = useState(0); 
 
             useEffect(() => { 
-                const base = { title: '', subtitle: '', image: '', videoUrl: '', appId: '', isTimed: false, createdAt: null, scheduledAt: '', removedAt: '', reactivatedAt: '', isHidden: false, recurringDays: [], type: 'standard', items: [{}, {}, {}], displayMode: 'story', cardSize: 'full', order: 1 }; 
-                if (editingHighlight) { 
-                    const mergedItems = editingHighlight.items ? [...editingHighlight.items] : [{}, {}, {}]; 
-                    while(mergedItems.length < 3) mergedItems.push({}); 
-                    setForm({ ...base, ...editingHighlight, type: editingHighlight.type || editingHighlight.layout || 'standard', items: mergedItems, videoUrl: editingHighlight.videoUrl || '', scheduledAt: toLocalDatetimeString(editingHighlight.scheduledAt) }); 
-                } else setForm(base); 
+                const base = { title: '', subtitle: '', image: '', videoUrl: '', appId: '', isTimed: false, createdAt: null, scheduledAt: '', isHidden: false, type: 'standard', items: [{}, {}, {}], displayMode: 'story', cardSize: 'full', order: 1 }; 
+                if (editingHighlight) { setForm({ ...base, ...editingHighlight, scheduledAt: toLocalDatetimeString(editingHighlight.scheduledAt) }); } 
+                else setForm(base); 
             }, [editingHighlight]); 
-
-            const handleFile = (e, field) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setForm(prev => ({...prev, [field]: reader.result})); reader.readAsDataURL(file); } }; 
-            
-            const updateItem = (index, field, val) => { const newItems = [...form.items]; newItems[index] = { ...newItems[index], [field]: val }; setForm({...form, type: 'mosaic', items: newItems}); }; 
 
             const save = async () => { 
                 setLoading(true); 
-                const data = { ...form, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).getTime() : null }; 
                 try { 
                     const coll = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('highlights'); 
-                    if (editingHighlight?.id) await coll.doc(editingHighlight.id).update(data); 
-                    else await coll.add({...data, createdAt: Date.now()}); 
+                    if (editingHighlight?.id) await coll.doc(editingHighlight.id).update({...form, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).getTime() : null}); 
+                    else await coll.add({...form, createdAt: Date.now(), scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).getTime() : null}); 
                     playSound('success'); 
                     onClose(); 
                 } catch (e) { alert(e.message); } finally { setLoading(false); } 
             }; 
 
-            const handleDelete = async () => {
-                if(!editingHighlight?.id) return;
-                if(!confirm("Deseja apagar este destaque permanentemente?")) return;
-                try {
-                    await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('highlights').doc(editingHighlight.id).delete();
-                    playSound('success');
-                    onClose();
-                } catch(e) { alert("Erro ao apagar: " + e.message); }
-            };
-
             return (
                 <div className="fixed inset-0 z-[150] bg-black text-white animate-spring flex flex-col overflow-y-auto">
-                    <header className="flex justify-between items-center p-6 sticky top-0 bg-black/90 backdrop-blur-md z-10"><h2 className="text-2xl font-bold">Highlight Editor</h2><button onClick={() => { playSound('click'); onClose(); }}><Icon name="X" size={24} /></button></header>
+                    <header className="flex justify-between items-center p-6 sticky top-0 bg-black/90 backdrop-blur-md z-10"><h2 className="text-2xl font-bold">Highlight Editor</h2><button onClick={onClose}><Icon name="X" size={24} /></button></header>
                     <div className="p-6 space-y-6 max-w-xl mx-auto w-full pb-20">
-                        <div className="grid grid-cols-2 gap-4 bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                            <div>
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Localização</label>
-                                <select className="w-full bg-black rounded-xl p-2 mt-1 text-sm font-bold outline-none" value={form.displayMode} onChange={e => setForm({...form, displayMode: e.target.value})}>
-                                    <option value="story">Story (Topo)</option>
-                                    <option value="widget">Widget (Grade)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Ordem (1-99)</label>
-                                <input type="number" className="w-full bg-black rounded-xl p-2 mt-1 text-sm font-bold outline-none" value={form.order} onChange={e => setForm({...form, order: parseInt(e.target.value)})} />
-                            </div>
-                        </div>
-
-                        {form.displayMode === 'story' && (
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Estilo</label>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setForm({...form, type: 'standard'})} style={{backgroundColor: form.type === 'standard' ? accentColor : '', borderColor: form.type === 'standard' ? accentColor : ''}} className={`flex-1 py-3 rounded-xl border text-xs font-bold uppercase ${form.type === 'standard' ? 'text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}>Vídeo/Imagem</button>
-                                    <button onClick={() => setForm({...form, type: 'mosaic'})} style={{backgroundColor: form.type === 'mosaic' ? accentColor : '', borderColor: form.type === 'mosaic' ? accentColor : ''}} className={`flex-1 py-3 rounded-xl border text-xs font-bold uppercase ${form.type === 'mosaic' ? 'text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}>Mosaico</button>
-                                </div>
-                            </div>
-                        )}
-
-                        <InputField label="Programar Lançamento (Vazio p/ agora)" type="datetime-local" value={form.scheduledAt} onChange={v => setForm({...form, scheduledAt: v})} accentColor={accentColor} />
-
-                        {form.type === 'standard' ? (
-                            <>
-                                <InputField label="Título" value={form.title} onChange={v => setForm({...form, title: v})} accentColor={accentColor} />
-                                <InputField label="Subtítulo" value={form.subtitle} onChange={v => setForm({...form, subtitle: v})} accentColor={accentColor} />
-                                <InputField label="Capa (URL/Base64)" value={form.image} onChange={v => setForm({...form, image: v})} accentColor={accentColor} />
-                                <div className="file-input-wrapper w-full bg-zinc-900 text-center py-3 rounded-2xl text-xs font-bold text-zinc-400 mb-4 cursor-pointer hover:bg-zinc-800 border border-zinc-800 border-dashed">
-                                    Subir Foto de Capa
-                                    <input type="file" accept="image/*" onChange={(e) => handleFile(e, 'image')} />
-                                </div>
-                                <InputField label="URL do Vídeo (YT ou Link Direto)" value={form.videoUrl} onChange={v => setForm({...form, videoUrl: v})} accentColor={accentColor} placeholder="Opcional. Ativa modo Vídeo." />
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Vincular App</label>
-                                    <select className="w-full bg-zinc-900 text-white rounded-2xl p-4 text-sm font-medium border border-zinc-800 outline-none" value={form.appId} onChange={e => setForm({...form, appId: e.target.value})}>
-                                        <option value="">Nenhum</option>
-                                        {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                    </select>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="bg-zinc-900/50 p-4 rounded-3xl border border-zinc-800">
-                                <p className="text-center text-xs text-zinc-500 mb-4">Mosaicos não suportam vídeos.</p>
-                                <div className="flex mb-6 bg-zinc-900 rounded-xl p-1">{['Topo', 'Esq', 'Dir'].map((label, idx) => (<button key={idx} onClick={() => setMosaicTab(idx)} className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${mosaicTab === idx ? 'bg-zinc-700 text-white shadow' : 'text-zinc-500'}`}>{label}</button>))}</div>
-                                <div className="space-y-4 animate-spring">
-                                    <InputField label="Imagem URL" value={form.items[mosaicTab].image || ''} onChange={v => updateItem(mosaicTab, 'image', v)} accentColor={accentColor} />
-                                    <select className="w-full bg-zinc-900 text-white rounded-xl p-3 text-sm font-medium border border-zinc-800 outline-none" value={form.items[mosaicTab].appId || ''} onChange={e => updateItem(mosaicTab, 'appId', e.target.value)}>
-                                        <option value="">Nenhum App</option>
-                                        {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                        )}
-                        <div className="flex gap-4 pt-4">
-                            {editingHighlight && <button onClick={handleDelete} className="p-4 bg-red-500/10 text-red-500 rounded-2xl active:scale-90 transition-transform"><Icon name="Trash2" /></button>}
-                            <button onClick={save} style={{backgroundColor: accentColor}} className="flex-1 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">{loading ? 'Salvando...' : 'Salvar Destaque'}</button>
-                        </div>
+                        <InputField label="Título" value={form.title} onChange={v => setForm({...form, title: v})} accentColor={accentColor} />
+                        <InputField label="Imagem URL" value={form.image} onChange={v => setForm({...form, image: v})} accentColor={accentColor} />
+                        <InputField label="Vincular App (ID)" value={form.appId} onChange={v => setForm({...form, appId: v})} accentColor={accentColor} />
+                        <button onClick={save} style={{backgroundColor: accentColor}} className="w-full text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">{loading ? 'Salvando...' : 'Salvar Destaque'}</button>
                     </div>
                 </div>
             ); 
         }
         
         function AdminAppModal({ editingApp, onClose, accentColor }) { 
-            const [form, setForm] = useState({ screenshots: [] }); 
+            const [form, setForm] = useState({}); 
             const [loading, setLoading] = useState(false); 
-            const [newShotUrl, setNewShotUrl] = useState("");
 
             useEffect(() => { 
-                const base = { name: '', developer: '', version: '', icon: '', category: 'Apps', screenshots: [], downloadUrl: '', description: '', rating: '4+', updateNews: '', isMod: false, scheduledAt: '', isVisibleBeforeLaunch: false, hasWarning: false, warningMessage: '', platform: 'Mobile', isLocked: false, isSecret: false, isHidden: false, unlockSurpriseAt: '', dependencyName: '', dependencyUrl: '', dependencyIcon: '' }; 
-                if (editingApp) { setForm({ ...base, ...editingApp, screenshots: editingApp.screenshots || [], scheduledAt: toLocalDatetimeString(editingApp.scheduledAt), unlockSurpriseAt: toLocalDatetimeString(editingApp.unlockSurpriseAt) }); } 
+                const base = { name: '', developer: '', icon: '', category: 'Apps', downloadUrl: '', description: '', isMod: false, scheduledAt: '' }; 
+                if (editingApp) { setForm({ ...base, ...editingApp, scheduledAt: toLocalDatetimeString(editingApp.scheduledAt) }); } 
                 else setForm(base); 
             }, [editingApp]); 
 
             const save = async () => { 
-                if (!form.name || !form.icon) return alert("Título e Ícone obrigatórios."); 
                 setLoading(true); 
-                const payload = { ...form, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).getTime() : null, lastUpdated: Date.now() }; 
-                delete payload.id; 
                 try { 
                     const coll = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('apps'); 
+                    const payload = { ...form, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).getTime() : null, lastUpdated: Date.now() };
+                    delete payload.id;
                     if (editingApp?.id) await coll.doc(editingApp.id).update(payload); 
                     else await coll.add(payload); 
                     playSound('success'); 
@@ -880,72 +839,60 @@
                 } catch (e) { alert(e.message); } finally { setLoading(false); } 
             }; 
 
-            const addShot = () => { if(newShotUrl) { setForm({...form, screenshots: [...(form.screenshots || []), newShotUrl]}); setNewShotUrl(""); } };
-            const removeShot = (idx) => { const s = [...form.screenshots]; s.splice(idx, 1); setForm({...form, screenshots: s}); };
-
             return (
                 <div className="fixed inset-0 z-[150] bg-black text-white animate-spring flex flex-col overflow-y-auto">
-                    <header className="flex justify-between items-center p-6 sticky top-0 bg-black/90 backdrop-blur-md border-b border-zinc-800 z-10"><h2 className="text-2xl font-bold">App Editor</h2><button onClick={() => { playSound('click'); onClose(); }}><Icon name="X" size={24} /></button></header>
+                    <header className="flex justify-between items-center p-6 sticky top-0 bg-black/90 backdrop-blur-md border-b border-zinc-800 z-10"><h2 className="text-2xl font-bold">App Editor</h2><button onClick={onClose}><Icon name="X" size={24} /></button></header>
                     <div className="p-6 space-y-5 max-w-xl mx-auto w-full pb-20">
                         <InputField label="Nome" value={form.name} onChange={v => setForm({...form, name: v})} accentColor={accentColor} />
-                        <InputField label="Agendar Lançamento (Vazio p/ agora)" type="datetime-local" value={form.scheduledAt} onChange={v => setForm({...form, scheduledAt: v})} accentColor={accentColor} />
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                             <div className="flex justify-between items-center bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold uppercase text-zinc-500">Modo Segredo</span>
-                                    <span className="text-[8px] text-zinc-600 font-bold uppercase">Auto-Revelação</span>
-                                </div>
-                                <IOSSwitch checked={form.isSecret} onChange={v => setForm({...form, isSecret: v})} accentColor={accentColor} />
-                            </div>
-                            <div className="flex justify-between items-center bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold uppercase text-zinc-500">Modo Oculto</span>
-                                    <span className="text-[8px] text-zinc-600 font-bold uppercase">Auto-Revelação</span>
-                                </div>
-                                <IOSSwitch checked={form.isHidden} onChange={v => setForm({...form, isHidden: v})} accentColor={accentColor} />
-                            </div>
-                        </div>
-
-                        <InputField label="Desenvolvedor" value={form.developer} onChange={v => setForm({...form, developer: v})} accentColor={accentColor} />
                         <InputField label="Ícone (URL)" value={form.icon} onChange={v => setForm({...form, icon: v})} accentColor={accentColor} />
                         <InputField label="Download URL" value={form.downloadUrl} onChange={v => setForm({...form, downloadUrl: v})} accentColor={accentColor} />
-                        
-                        <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase mb-3 block">Screenshots</label>
-                            <div className="flex gap-2 mb-4">
-                                <input className="flex-1 bg-black rounded-xl p-3 text-sm outline-none border border-zinc-800" placeholder="URL da Imagem" value={newShotUrl} onChange={e => setNewShotUrl(e.target.value)} />
-                                <button onClick={addShot} style={{backgroundColor: accentColor}} className="w-12 rounded-xl flex items-center justify-center"><Icon name="Plus" /></button>
-                            </div>
-                            <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                                {form.screenshots?.map((url, i) => (
-                                    <div key={i} className="relative shrink-0">
-                                        <img src={url} className="w-20 h-32 object-cover rounded-xl border border-zinc-800" />
-                                        <button onClick={() => removeShot(i)} className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1"><Icon name="X" size={12} /></button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                            <label className="text-xs font-bold text-zinc-500 uppercase">Categoria</label>
-                            <select className="w-full bg-black text-white rounded-xl p-3 mt-2 text-sm font-medium outline-none" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
-                                {['Apps', 'Jogos', 'PC', 'Streaming', 'Utilitários', 'Rede Sociais'].map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="flex gap-4 pt-4">
-                            {editingApp && <button onClick={() => { if(confirm('Deletar App?')) db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('apps').doc(editingApp.id).delete().then(onClose)}} className="p-4 bg-red-500/10 text-red-500 rounded-2xl active:scale-90 transition-transform"><Icon name="Trash2" /></button>}
-                            <button onClick={save} style={{backgroundColor: accentColor}} className="flex-1 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">{loading ? 'Salvando...' : 'Salvar App'}</button>
-                        </div>
+                        <button onClick={save} style={{backgroundColor: accentColor}} className="w-full text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">{loading ? 'Salvando...' : 'Salvar App'}</button>
                     </div>
                 </div>
             ); 
         }
 
-        function LoginView({ onLogin, accentColor }) { const [mode, setMode] = useState('login'); const [username, setUsername] = useState(''); const [password, setPassword] = useState(''); const [loading, setLoading] = useState(false); const handleAction = async (e) => { e.preventDefault(); if (!username || !password) return alert('Preencha todos os campos.'); setLoading(true); try { if (mode === 'login' && username === 'DN' && password === 'dnvy2205ZX@') { playSound('success'); onLogin(true, username); return; } const accountRef = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(username); const doc = await accountRef.get(); if (mode === 'login') { if (doc.exists && doc.data().password === password) { playSound('success'); onLogin(false, username, doc.data().image); } else { playSound('lock'); alert("Dados incorretos."); } } else { if (doc.exists) { playSound('lock'); alert("Usuário já existe."); } else { await accountRef.set({ password: password, createdAt: Date.now(), image: '' }); playSound('success'); alert("Criado! Faça login."); setMode('login'); } } } catch (error) { alert("Erro. Tente novamente."); } finally { setLoading(false); } }; return (<div className="h-screen bg-black flex flex-col items-center justify-center p-8 text-center view-animate relative overflow-hidden"><div className="absolute inset-0 bg-gradient-to-b from-blue-900/10 via-black to-black z-0 pointer-events-none"></div><div className="w-full max-sm z-10 relative flex flex-col items-center"><div className="mb-10 scale-90 animate-float"><div className="w-24 h-24 bg-zinc-900 rounded-[30px] border-[3px] border-zinc-800 shadow-[0_0_40px_rgba(37,99,235,0.2)] flex items-center justify-center gap-3"><div className="w-4 h-6 rounded-full bg-white animate-blink"></div><div className="w-4 h-6 rounded-full bg-white animate-blink"></div></div></div><h1 className="text-4xl font-black text-white mb-2 tracking-tighter">Nexus</h1><p className="text-zinc-500 text-sm font-medium mb-12">Acesse sua coleção digital.</p><form onSubmit={handleAction} className="space-y-4 w-full"><div className="bg-[#1c1c1e] p-1.5 rounded-[35px] border border-white/5 shadow-2xl"><input type="text" placeholder="Usuário" className="w-full bg-transparent px-6 py-4 text-sm font-bold text-white outline-none placeholder:text-zinc-600 text-center" value={username} onChange={(e) => setUsername(e.target.value)} /><div className="h-[1px] bg-zinc-800 mx-6"></div><input type="password" placeholder="Senha" className="w-full bg-transparent px-6 py-4 text-sm font-bold text-white outline-none placeholder:text-zinc-600 text-center" value={password} onChange={(e) => setPassword(e.target.value)} /></div><button type="submit" disabled={loading} style={{backgroundColor: accentColor || '#2563eb'}} className="w-full py-5 text-white rounded-[30px] font-bold text-sm active:scale-95 transition-transform shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center justify-center gap-2 btn-fluid">{loading ? 'Carregando...' : (mode === 'login' ? 'Entrar' : 'Cadastrar')}</button></form><div className="mt-8"><button onClick={() => { playSound('click'); setMode(mode === 'login' ? 'register' : 'login'); }} className="text-xs font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-wider">{mode === 'login' ? 'Criar Conta' : 'Voltar ao Login'}</button></div></div></div>); }
-        function ScheduledView({ apps, highlights, onClose, onEditApp, onEditHigh, accentColor }) { const allApps = [...apps].sort((a,b) => (a.scheduledAt || 0) - (b.scheduledAt || 0)); const allHighs = [...highlights].sort((a,b) => (a.order || 99) - (b.order || 99)); return (<div className="fixed inset-0 z-[300] bg-black text-white animate-spring flex flex-col overflow-y-auto"><header className="h-16 flex items-center justify-between px-6 sticky top-0 bg-black/90 backdrop-blur-xl border-b border-zinc-800 z-30"><button onClick={() => { playSound('click'); onClose(); }} style={{color: accentColor}} className="font-bold flex items-center gap-1 text-sm"><Icon name="ChevronLeft" size={24} /></button><h2 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Gerenciador</h2><div className="w-10"></div></header><div className="p-6 space-y-10 pb-20 max-w-4xl mx-auto w-full"><section><h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">Destaques</h3><div className="space-y-3">{allHighs.map(h => (<div key={h.id} onClick={() => { playSound('click'); onEditHigh(h); }} className="flex items-center gap-4 p-4 rounded-3xl bg-zinc-900 border border-zinc-800 active:scale-98 transition-transform cursor-pointer"><div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500">{h.order || '-'}</div><img src={h.image || h.items?.[0]?.image} className="w-10 h-14 rounded-lg object-cover bg-zinc-800" /><div className="flex-1 min-w-0"><p className="font-bold text-sm truncate text-white mb-1">{h.title || 'Sem título'}</p><span style={{color: accentColor, backgroundColor: `${accentColor}15`}} className="text-[9px] px-2 py-1 rounded-md uppercase font-bold tracking-wide">{h.displayMode === 'widget' ? `Widget (${h.cardSize})` : 'Story'}</span></div><Icon name="Edit3" size={18} className="text-zinc-600" /></div>))}</div></section><section><h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">Apps</h3><div className="space-y-3">{allApps.map(app => (<div key={app.id} onClick={() => { playSound('click'); onEditApp(app); }} className="flex items-center gap-4 p-4 rounded-3xl bg-zinc-900 border border-zinc-800 active:scale-98 transition-transform cursor-pointer"><img src={app.icon} className="w-12 h-12 rounded-2xl object-cover bg-zinc-800" /><div className="flex-1 min-w-0"><p className="font-bold text-sm truncate text-white mb-1">{app.name}</p><p className="text-[10px] text-zinc-500">{app.category}</p></div><Icon name="Edit3" size={18} className="text-zinc-600" /></div>))}</div></section></div></div>); }
-        function ProfileModal({ isAdmin, setAdmin, onClose, profileImage, onImageUpload, theme, setTheme, accentColor, setAccentColor }) { const [showAdminLogin, setShowAdminLogin] = useState(false); const [userLogin, setUserLogin] = useState(''); const [passLogin, setPassLogin] = useState(''); const fileInputRef = useRef(null); const colors = THEMES[theme] || THEMES.amoled; const currentUsername = localStorage.getItem('nexus_username'); const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => onImageUpload(reader.result); reader.readAsDataURL(file); } }; const handleLogin = () => { if (userLogin === 'DN' && passLogin === 'dnvy2205ZX@') { setAdmin(true); playSound('success'); onClose(); } else alert("Erro."); }; return (<div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 view-animate"><div className={`${colors.card} w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative border ${colors.border} flex flex-col items-center text-center`}><div onClick={() => fileInputRef.current?.click()} className={`w-24 h-24 rounded-full ${colors.input} border-4 ${colors.card} shadow-xl overflow-hidden relative group cursor-pointer mb-4`}>{profileImage ? <img src={profileImage} className="w-full h-full object-cover" /> : <Icon name="Camera" size={32} className={`text-zinc-500 m-auto mt-7`} />}</div><input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} /><h2 className={`text-2xl font-bold ${colors.text} mb-1`}>{isAdmin ? 'Admin' : (currentUsername || 'Membro')}</h2><p onClick={() => !isAdmin && setShowAdminLogin(!showAdminLogin)} className={`text-xs font-bold uppercase tracking-widest ${colors.subtext} mb-8 cursor-pointer`}>{isAdmin ? 'Acesso Master' : 'Usuário'}</p><div className={`p-2 ${colors.input} rounded-2xl mb-4 flex gap-1 w-full`}>{['amoled', 'matte', 'light'].map(t => (<button key={t} onClick={() => { playSound('click'); setTheme(t); }} className={`flex-1 py-3 text-[10px] font-bold uppercase rounded-xl transition-all ${theme === t ? (t==='light' ? 'bg-white text-black shadow' : 'bg-zinc-800 text-white shadow') : colors.subtext}`}>{t}</button>))}</div><div className={`p-3 ${colors.input} rounded-2xl mb-8 flex justify-between gap-1 w-full`}>{Object.entries(ACCENT_COLORS).map(([key, val]) => (<button key={key} onClick={() => { playSound('click'); setAccentColor(val.hex); }} className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-90 flex items-center justify-center ${accentColor === val.hex ? 'border-white scale-110' : 'border-transparent'}`} style={{ backgroundColor: val.hex }}>{accentColor === val.hex && <Icon name="Check" size={14} className="text-white" />}</button>))}</div>{showAdminLogin && !isAdmin && (<div className="w-full space-y-2 mb-4 animate-spring"><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} placeholder="User" value={userLogin} onChange={e => setUserLogin(e.target.value)}/><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} type="password" placeholder="Pass" value={passLogin} onChange={e => setPassLogin(e.target.value)}/><button onClick={handleLogin} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-xs">Login</button></div>)}<button onClick={() => { playSound('click'); onClose(); }} className={`absolute top-6 right-6 w-10 h-10 rounded-full ${colors.input} flex items-center justify-center`}><Icon name="X" size={20} /></button><button onClick={() => { if(isAdmin) setAdmin(false); else { localStorage.removeItem('nexus_logged_in'); location.reload(); } }} className="w-full py-4 text-red-500 text-sm font-bold bg-red-500/10 rounded-2xl">Sair</button></div></div>); }
+        function LoginView({ onLogin, accentColor }) { const [mode, setMode] = useState('login'); const [username, setUsername] = useState(''); const [password, setPassword] = useState(''); const [loading, setLoading] = useState(false); const handleAction = async (e) => { e.preventDefault(); if (!username || !password) return alert('Preencha todos os campos.'); setLoading(true); try { if (mode === 'login' && username === 'DN' && password === 'dnvy2205ZX@') { playSound('success'); onLogin(true, username); return; } const accountRef = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(username); const doc = await accountRef.get(); if (mode === 'login') { if (doc.exists && doc.data().password === password) { playSound('success'); onLogin(false, username, doc.data().image); } else { playSound('lock'); alert("Dados incorretos."); } } else { if (doc.exists) { playSound('lock'); alert("Usuário já existe."); } else { await accountRef.set({ password: password, createdAt: Date.now(), image: '' }); playSound('success'); alert("Criado! Faça login."); setMode('login'); } } } catch (error) { alert("Erro."); } finally { setLoading(false); } }; return (<div className="h-screen bg-black flex flex-col items-center justify-center p-8 text-center view-animate relative overflow-hidden"><div className="absolute inset-0 bg-gradient-to-b from-blue-900/10 via-black to-black z-0 pointer-events-none"></div><div className="w-full max-sm z-10 relative flex flex-col items-center"><div className="mb-10 scale-90 animate-float"><div className="w-24 h-24 bg-zinc-900 rounded-[30px] border-[3px] border-zinc-800 flex items-center justify-center gap-3"><div className="w-4 h-6 rounded-full bg-white animate-blink"></div><div className="w-4 h-6 rounded-full bg-white animate-blink"></div></div></div><h1 className="text-4xl font-black text-white mb-12 tracking-tighter">Nexus</h1><form onSubmit={handleAction} className="space-y-4 w-full"><div className="bg-[#1c1c1e] p-1.5 rounded-[35px] border border-white/5 shadow-2xl"><input type="text" placeholder="Usuário" className="w-full bg-transparent px-6 py-4 text-sm font-bold text-white outline-none placeholder:text-zinc-600 text-center" value={username} onChange={(e) => setUsername(e.target.value)} /><div className="h-[1px] bg-zinc-800 mx-6"></div><input type="password" placeholder="Senha" className="w-full bg-transparent px-6 py-4 text-sm font-bold text-white outline-none placeholder:text-zinc-600 text-center" value={password} onChange={(e) => setPassword(e.target.value)} /></div><button type="submit" disabled={loading} style={{backgroundColor: accentColor}} className="w-full py-5 text-white rounded-[30px] font-bold text-sm shadow-xl">{loading ? 'Carregando...' : (mode === 'login' ? 'Entrar' : 'Cadastrar')}</button></form><div className="mt-8"><button onClick={() => setMode(mode === 'login' ? 'register' : 'login')} className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{mode === 'login' ? 'Criar Conta' : 'Voltar ao Login'}</button></div></div></div>); }
+
+        function ProfileModal({ isAdmin, setAdmin, onClose, profileImage, onImageUpload, theme, setTheme, accentColor, setAccentColor }) { 
+            const colors = THEMES[theme] || THEMES.amoled; 
+            const currentUsername = localStorage.getItem('nexus_username');
+            const fileInputRef = useRef(null);
+
+            const handleFileChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => onImageUpload(reader.result);
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 view-animate">
+                    <div className={`${colors.card} w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative border ${colors.border} flex flex-col items-center text-center`}>
+                        <div onClick={() => fileInputRef.current?.click()} className={`w-24 h-24 rounded-full ${colors.input} border-4 ${colors.card} shadow-xl overflow-hidden relative group cursor-pointer mb-4`}>
+                            {profileImage ? <img src={profileImage} className="w-full h-full object-cover" /> : <Icon name="Camera" size={32} className={`text-zinc-500 m-auto mt-7`} />}
+                        </div>
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+                        <h2 className={`text-2xl font-bold ${colors.text} mb-1`}>{currentUsername || 'Membro'}</h2>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest ${colors.subtext} mb-8`}>{isAdmin ? 'Master Admin' : 'Utilizador'}</p>
+                        <div className={`p-2 ${colors.input} rounded-2xl mb-4 flex gap-1 w-full`}>
+                            {['amoled', 'matte', 'light'].map(t => (
+                                <button key={t} onClick={() => setTheme(t)} className={`flex-1 py-3 text-[10px] font-bold uppercase rounded-xl ${theme === t ? 'bg-zinc-800 text-white shadow' : colors.subtext}`}>{t}</button>
+                            ))}
+                        </div>
+                        <div className={`p-3 ${colors.input} rounded-2xl mb-8 flex justify-between gap-1 w-full`}>
+                            {Object.entries(ACCENT_COLORS).map(([key, val]) => (
+                                <button key={key} onClick={() => setAccentColor(val.hex)} className={`w-8 h-8 rounded-full border-2 ${accentColor === val.hex ? 'border-white scale-110' : 'border-transparent'}`} style={{ backgroundColor: val.hex }}></button>
+                            ))}
+                        </div>
+                        <button onClick={onClose} className={`absolute top-6 right-6 w-10 h-10 rounded-full ${colors.input} flex items-center justify-center`}><Icon name="X" size={20} /></button>
+                        <button onClick={() => { localStorage.removeItem('nexus_logged_in'); location.reload(); }} className="w-full py-4 text-red-500 text-sm font-bold bg-red-500/10 rounded-2xl">Sair</button>
+                    </div>
+                </div>
+            ); 
+        }
 
         function App() {
             const [view, setView] = useState('loading');
@@ -958,7 +905,6 @@
             const [highlights, setHighlights] = useState([]);
             const [quickAccess, setQuickAccess] = useState([]);
             const [profileImage, setProfileImage] = useState(null);
-            const [noticeConfig, setNoticeConfig] = useState({ active: false, title: '', message: '' });
             const [isMaintenance, setIsMaintenance] = useState(false);
             const [selectedApp, setSelectedApp] = useState(null);
             const [selectedCollection, setSelectedCollection] = useState(null);
@@ -972,19 +918,6 @@
             const [showScheduled, setShowScheduled] = useState(false);
             const [showRobot, setShowRobot] = useState(true);
             const colors = THEMES[theme] || THEMES.amoled;
-
-            const setAdminState = (status) => { setIsAdmin(status); if (status) localStorage.setItem('nexus_admin_status', 'true'); else localStorage.removeItem('nexus_admin_status'); };
-            const handleSetTheme = (newTheme) => { setTheme(newTheme); localStorage.setItem('nexus_theme', newTheme); };
-            const handleSetAccent = (newHex) => { setAccentColor(newHex); localStorage.setItem('nexus_accent', newHex); };
-            const handleLogin = (isAdminUser, username, customImage) => { localStorage.setItem('nexus_username', username); if(isAdminUser) setAdminState(true); localStorage.setItem('nexus_logged_in', 'true'); if(customImage) setProfileImage(customImage); setView('store'); };
-
-            const toggleMaintenance = async () => {
-                const newState = !isMaintenance;
-                try {
-                    await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('config').set({ maintenance: newState }, { merge: true });
-                    playSound('success');
-                } catch(e) { console.error("Erro Manutenção:", e); }
-            };
 
             useEffect(() => {
                 const unsubAuth = auth.onAuthStateChanged(u => { 
@@ -1002,36 +935,37 @@
             useEffect(() => {
                 if (!user) return;
                 const ref = db.collection('artifacts').doc(DB_APP_ID);
-                const u1 = ref.collection('public').doc('data').collection('apps').onSnapshot(s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
-                const u2 = ref.collection('public').doc('data').collection('highlights').onSnapshot(s => setHighlights(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
-                const u3 = ref.collection('public').doc('config').onSnapshot(d => { if (d.exists) { const data = d.data(); setIsMaintenance(data.maintenance || false); setNoticeConfig(data.notice || { active: false, title: '', message: '' }); }}, err => console.log(err));
-                const u4 = ref.collection('public').doc('data').collection('quickAccess').onSnapshot(s => setQuickAccess(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
+                const u1 = ref.collection('public').doc('data').collection('apps').onSnapshot(s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const u2 = ref.collection('public').doc('data').collection('highlights').onSnapshot(s => setHighlights(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const u3 = ref.collection('public').doc('config').onSnapshot(d => { if (d.exists) setIsMaintenance(d.data().maintenance || false); });
+                const u4 = ref.collection('public').doc('data').collection('quickAccess').onSnapshot(s => setQuickAccess(s.docs.map(d => ({id: d.id, ...d.data()}))));
                 return () => { u1(); u2(); u3(); u4(); };
             }, [user]);
 
+            const handleLogin = (isAdminUser, username, customImage) => { localStorage.setItem('nexus_username', username); if(isAdminUser) { setIsAdmin(true); localStorage.setItem('nexus_admin_status', 'true'); } localStorage.setItem('nexus_logged_in', 'true'); if(customImage) setProfileImage(customImage); setView('store'); };
             const handleImageUpload = async (base64) => { setProfileImage(base64); const currentUsername = localStorage.getItem('nexus_username'); if(!isAdmin && currentUsername) { await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(currentUsername).update({ image: base64 }); } };
-            const handleQuickAccess = (item) => { if(item.actionType === 'filter') { setSelectedCollection(item); } else if (item.actionType === 'link') { openSystemLink(item.actionValue); } else if (item.actionType === 'tab') { setActiveTab(item.actionValue); } };
 
-            if (isMaintenance && !isAdmin) return <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-white font-bold p-8 text-center"><div className="w-16 h-16 bg-zinc-900 rounded-3xl border border-zinc-800 flex items-center justify-center mb-6 animate-float"><Icon name="AlertOctagon" className="text-red-500" size={32} /></div><h1 className="text-2xl mb-2">Manutenção</h1><p className="text-zinc-500 text-sm font-medium leading-relaxed">Estamos a preparar algo incrível para si. <br/> Voltamos em breve.</p></div>;
+            if (isMaintenance && !isAdmin) return <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-white font-bold p-8 text-center"><h1 className="text-2xl mb-2">Manutenção</h1><p className="text-zinc-500 text-sm">Voltamos em breve.</p></div>;
             if (view === 'loading') return <div className="h-screen bg-black flex items-center justify-center"><div className="w-10 h-10 border-4 rounded-full animate-spin border-t-transparent" style={{borderColor: accentColor}}></div></div>;
             if (view === 'login') return <LoginView onLogin={handleLogin} accentColor={accentColor} />;
 
             return (
-                <div className={`h-screen w-full ${colors.bg} ${colors.text} overflow-hidden flex flex-col font-sans transition-colors duration-500`}>
+                <div className={`h-screen w-full ${colors.bg} ${colors.text} overflow-hidden flex flex-col transition-colors duration-500`}>
                     {showRobot && <NexusBot mode="greeting" message={`Olá, <span style="color: ${accentColor}">${localStorage.getItem('nexus_username') || 'Visitante'}</span>`} accentColor={accentColor} onComplete={() => setShowRobot(false)} />}
-                    {noticeConfig.active && !showRobot && <div className="fixed inset-0 z-[8000] bg-black/80 flex items-center justify-center p-6"><div className="bg-zinc-900 p-6 rounded-3xl max-w-xs text-center border border-zinc-800"><h3 className="font-bold text-white text-lg mb-2">{noticeConfig.title}</h3><p className="text-zinc-400 text-sm mb-6 leading-relaxed">{noticeConfig.message}</p><button onClick={() => setNoticeConfig({...noticeConfig, active: false})} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white active:scale-95 transition-transform">Fechar</button></div></div>}
 
                     <div className="flex-1 overflow-y-auto no-scrollbar relative">
-                        {activeTab === 'today' && <TodayView key="today" apps={apps} highlights={highlights} quickAccess={quickAccess} onProfile={() => setShowProfile(true)} onSettings={() => setShowSettings(true)} onApp={setSelectedApp} onQuickAccess={handleQuickAccess} isAdmin={isAdmin} profileImage={profileImage} themeMode={theme} accentColor={accentColor} />}
-                        {activeTab === 'search' && <SearchView key="search" apps={apps} onApp={setSelectedApp} onProfile={() => setShowProfile(true)} profileImage={profileImage} themeMode={theme} accentColor={accentColor} />}
+                        {activeTab === 'today' && <TodayView key="today" apps={apps} highlights={highlights} quickAccess={quickAccess} onProfile={() => setShowProfile(true)} onSettings={() => setShowSettings(true)} onApp={setSelectedApp} onQuickAccess={(it) => { if(it.actionType === 'filter') setSelectedCollection(it); else if(it.actionType === 'tab') setActiveTab(it.actionValue); }} isAdmin={isAdmin} profileImage={profileImage} themeMode={theme} accentColor={accentColor} />}
+                        {activeTab === 'search' && <SearchView key="search" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
+                        {activeTab === 'chat' && <ChatView key="chat" themeMode={theme} accentColor={accentColor} profileImage={profileImage} />}
                         {activeTab === 'games' && <CategorizedView title="Jogos" categoryFilter="Jogos" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
                         {activeTab === 'apps' && <CategorizedView title="Apps" categoryFilter="Apps" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
                     </div>
 
-                    <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[94%] max-w-[440px] px-1 py-3 rounded-[35px] flex justify-between items-center z-50 ${colors.dock} transition-all duration-300`}>
+                    <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[94%] max-w-[440px] px-1 py-3 rounded-[35px] flex justify-between items-center z-50 ${colors.dock}`}>
                         <TabButton active={activeTab === 'today'} icon="Zap" label="Hoje" onClick={() => setActiveTab('today')} themeMode={theme} accentColor={accentColor} />
                         <TabButton active={activeTab === 'games'} icon="Gamepad2" label="Jogos" onClick={() => setActiveTab('games')} themeMode={theme} accentColor={accentColor} />
                         <TabButton active={activeTab === 'apps'} icon="Layers" label="Apps" onClick={() => setActiveTab('apps')} themeMode={theme} accentColor={accentColor} />
+                        <TabButton active={activeTab === 'chat'} icon="MessageCircle" label="Chat" onClick={() => setActiveTab('chat')} themeMode={theme} accentColor={accentColor} />
                         <TabButton active={activeTab === 'search'} icon="Search" label="Busca" onClick={() => setActiveTab('search')} themeMode={theme} accentColor={accentColor} />
                     </nav>
 
@@ -1042,23 +976,19 @@
                         <SettingsModal 
                             onClose={() => setShowSettings(false)} 
                             accentColor={accentColor} 
-                            themeMode={theme} 
                             onAddApp={() => { setShowSettings(false); setEditingApp(null); setShowAdminModal(true); }}
                             onAddStory={() => { setShowSettings(false); setEditingHighlight(null); setShowHighlightModal(true); }}
                             onSchedule={() => { setShowSettings(false); setShowScheduled(true); }}
                             onQuickAccessManager={() => { setShowSettings(false); setShowQuickAccessManager(true); }}
                             maintenance={isMaintenance}
-                            toggleMaintenance={toggleMaintenance}
-                            noticeConfig={noticeConfig}
-                            setNoticeConfig={setNoticeConfig}
+                            toggleMaintenance={() => db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('config').set({ maintenance: !isMaintenance }, { merge: true })}
                         />
                     )}
 
                     {showAdminModal && <AdminAppModal editingApp={editingApp} onClose={() => setShowAdminModal(false)} accentColor={accentColor} />}
                     {showHighlightModal && <HighlightModal editingHighlight={editingHighlight} apps={apps} onClose={() => setShowHighlightModal(false)} accentColor={accentColor} />}
-                    {showScheduled && <ScheduledView apps={apps} highlights={highlights} onClose={() => setShowScheduled(false)} onEditApp={(a) => { setEditingApp(a); setShowScheduled(false); setShowAdminModal(true); }} onEditHigh={(h) => { setEditingHighlight(h); setShowScheduled(false); setShowHighlightModal(true); }} accentColor={accentColor} />}
                     {showQuickAccessManager && <QuickAccessManager quickAccess={quickAccess} onClose={() => setShowQuickAccessManager(false)} accentColor={accentColor} />}
-                    {showProfile && <ProfileModal isAdmin={isAdmin} setAdmin={setAdminState} onClose={() => setShowProfile(false)} profileImage={profileImage} onImageUpload={handleImageUpload} theme={theme} setTheme={handleSetTheme} accentColor={accentColor} setAccentColor={handleSetAccent} />}
+                    {showProfile && <ProfileModal isAdmin={isAdmin} onClose={() => setShowProfile(false)} profileImage={profileImage} onImageUpload={handleImageUpload} theme={theme} setTheme={t => { setTheme(t); localStorage.setItem('nexus_theme', t); }} accentColor={accentColor} setAccentColor={c => { setAccentColor(c); localStorage.setItem('nexus_accent', c); }} />}
                 </div>
             );
         }
