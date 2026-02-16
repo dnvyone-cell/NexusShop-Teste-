@@ -5,24 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Nexus App Store</title>
     
-    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Nexus">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4712/4712109.png">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/4712/4712109.png">
 
-    <!-- Dependências Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Firebase SDK Compat -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -151,7 +149,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const APP_VERSION = "6.5.1 - Auto Notifications"; 
+        const APP_VERSION = "6.5.3 - Fix Notif Alert"; 
 
         const firebaseConfig = {
             apiKey: "AIzaSyDcWSyP6S7LDuGQ1ZjFqKAHCZ8mjwJhEKY",
@@ -230,8 +228,6 @@
             } 
             return <video src={url} poster={image} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />; 
         }
-        
-        // --- NEW NOTIFICATION COMPONENTS ---
         
         function PushToast({ notification, onClose, accentColor }) {
             if (!notification) return null;
@@ -854,116 +850,6 @@
             ); 
         }
         
-        function HighlightModal({ editingHighlight, apps, onClose, accentColor }) { 
-            const [form, setForm] = useState({ type: 'standard', items: [{}, {}, {}], displayMode: 'story', cardSize: 'full', order: 1 }); 
-            const [loading, setLoading] = useState(false); 
-            const [mosaicTab, setMosaicTab] = useState(0); 
-
-            useEffect(() => { 
-                const base = { title: '', subtitle: '', image: '', videoUrl: '', appId: '', isTimed: false, createdAt: null, scheduledAt: '', removedAt: '', reactivatedAt: '', isHidden: false, recurringDays: [], type: 'standard', items: [{}, {}, {}], displayMode: 'story', cardSize: 'full', order: 1 }; 
-                if (editingHighlight) { 
-                    const mergedItems = editingHighlight.items ? [...editingHighlight.items] : [{}, {}, {}]; 
-                    while(mergedItems.length < 3) mergedItems.push({}); 
-                    setForm({ ...base, ...editingHighlight, type: editingHighlight.type || editingHighlight.layout || 'standard', items: mergedItems, videoUrl: editingHighlight.videoUrl || '', scheduledAt: toLocalDatetimeString(editingHighlight.scheduledAt) }); 
-                } else setForm(base); 
-            }, [editingHighlight]); 
-
-            const handleFile = (e, field) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => setForm(prev => ({...prev, [field]: reader.result})); reader.readAsDataURL(file); } }; 
-            
-            const updateItem = (index, field, val) => { const newItems = [...form.items]; newItems[index] = { ...newItems[index], [field]: val }; setForm({...form, type: 'mosaic', items: newItems}); }; 
-
-            const save = async () => { 
-                setLoading(true); 
-                const data = { ...form, scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).getTime() : null }; 
-                try { 
-                    const coll = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('highlights'); 
-                    if (editingHighlight?.id) await coll.doc(editingHighlight.id).update(data); 
-                    else await coll.add({...data, createdAt: Date.now()}); 
-                    playSound('success'); 
-                    onClose(); 
-                } catch (e) { alert(e.message); } finally { setLoading(false); } 
-            }; 
-
-            const handleDelete = async () => {
-                if(!editingHighlight?.id) return;
-                if(!confirm("Deseja apagar este destaque permanentemente?")) return;
-                try {
-                    await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('highlights').doc(editingHighlight.id).delete();
-                    playSound('success');
-                    onClose();
-                } catch(e) { alert("Erro ao apagar: " + e.message); }
-            };
-
-            return (
-                <div className="fixed inset-0 z-[150] bg-black text-white animate-spring flex flex-col overflow-y-auto">
-                    <header className="flex justify-between items-center p-6 sticky top-0 bg-black/90 backdrop-blur-md z-10"><h2 className="text-2xl font-bold">Highlight Editor</h2><button onClick={() => { playSound('click'); onClose(); }}><Icon name="X" size={24} /></button></header>
-                    <div className="p-6 space-y-6 max-w-xl mx-auto w-full pb-20">
-                        <div className="grid grid-cols-2 gap-4 bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                            <div>
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Localização</label>
-                                <select className="w-full bg-black rounded-xl p-2 mt-1 text-sm font-bold outline-none" value={form.displayMode} onChange={e => setForm({...form, displayMode: e.target.value})}>
-                                    <option value="story">Story (Topo)</option>
-                                    <option value="widget">Widget (Grade)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Ordem (1-99)</label>
-                                <input type="number" className="w-full bg-black rounded-xl p-2 mt-1 text-sm font-bold outline-none" value={form.order} onChange={e => setForm({...form, order: parseInt(e.target.value)})} />
-                            </div>
-                        </div>
-
-                        {form.displayMode === 'story' && (
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Estilo</label>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setForm({...form, type: 'standard'})} style={{backgroundColor: form.type === 'standard' ? accentColor : '', borderColor: form.type === 'standard' ? accentColor : ''}} className={`flex-1 py-3 rounded-xl border text-xs font-bold uppercase ${form.type === 'standard' ? 'text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}>Vídeo/Imagem</button>
-                                    <button onClick={() => setForm({...form, type: 'mosaic'})} style={{backgroundColor: form.type === 'mosaic' ? accentColor : '', borderColor: form.type === 'mosaic' ? accentColor : ''}} className={`flex-1 py-3 rounded-xl border text-xs font-bold uppercase ${form.type === 'mosaic' ? 'text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}>Mosaico</button>
-                                </div>
-                            </div>
-                        )}
-
-                        <InputField label="Programar Lançamento (Vazio p/ agora)" type="datetime-local" value={form.scheduledAt} onChange={v => setForm({...form, scheduledAt: v})} accentColor={accentColor} />
-
-                        {form.type === 'standard' ? (
-                            <>
-                                <InputField label="Título" value={form.title} onChange={v => setForm({...form, title: v})} accentColor={accentColor} />
-                                <InputField label="Subtítulo" value={form.subtitle} onChange={v => setForm({...form, subtitle: v})} accentColor={accentColor} />
-                                <InputField label="Capa (URL/Base64)" value={form.image} onChange={v => setForm({...form, image: v})} accentColor={accentColor} />
-                                <div className="file-input-wrapper w-full bg-zinc-900 text-center py-3 rounded-2xl text-xs font-bold text-zinc-400 mb-4 cursor-pointer hover:bg-zinc-800 border border-zinc-800 border-dashed">
-                                    Subir Foto de Capa
-                                    <input type="file" accept="image/*" onChange={(e) => handleFile(e, 'image')} />
-                                </div>
-                                <InputField label="URL do Vídeo (YT ou Link Direto)" value={form.videoUrl} onChange={v => setForm({...form, videoUrl: v})} accentColor={accentColor} placeholder="Opcional. Ativa modo Vídeo." />
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Vincular App</label>
-                                    <select className="w-full bg-zinc-900 text-white rounded-2xl p-4 text-sm font-medium border border-zinc-800 outline-none" value={form.appId} onChange={e => setForm({...form, appId: e.target.value})}>
-                                        <option value="">Nenhum</option>
-                                        {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                    </select>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="bg-zinc-900/50 p-4 rounded-3xl border border-zinc-800">
-                                <p className="text-center text-xs text-zinc-500 mb-4">Mosaicos não suportam vídeos.</p>
-                                <div className="flex mb-6 bg-zinc-900 rounded-xl p-1">{['Topo', 'Esq', 'Dir'].map((label, idx) => (<button key={idx} onClick={() => setMosaicTab(idx)} className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${mosaicTab === idx ? 'bg-zinc-700 text-white shadow' : 'text-zinc-500'}`}>{label}</button>))}</div>
-                                <div className="space-y-4 animate-spring">
-                                    <InputField label="Imagem URL" value={form.items[mosaicTab].image || ''} onChange={v => updateItem(mosaicTab, 'image', v)} accentColor={accentColor} />
-                                    <select className="w-full bg-zinc-900 text-white rounded-xl p-3 text-sm font-medium border border-zinc-800 outline-none" value={form.items[mosaicTab].appId || ''} onChange={e => updateItem(mosaicTab, 'appId', e.target.value)}>
-                                        <option value="">Nenhum App</option>
-                                        {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                        )}
-                        <div className="flex gap-4 pt-4">
-                            {editingHighlight && <button onClick={handleDelete} className="p-4 bg-red-500/10 text-red-500 rounded-2xl active:scale-90 transition-transform"><Icon name="Trash2" /></button>}
-                            <button onClick={save} style={{backgroundColor: accentColor}} className="flex-1 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">{loading ? 'Salvando...' : 'Salvar Destaque'}</button>
-                        </div>
-                    </div>
-                </div>
-            ); 
-        }
-        
         function AdminAppModal({ editingApp, onClose, accentColor }) { 
             const [form, setForm] = useState({ screenshots: [] }); 
             const [loading, setLoading] = useState(false); 
@@ -986,23 +872,11 @@
 
                     if (editingApp?.id) { 
                         await coll.doc(editingApp.id).update(payload);
-                        // Auto Notification Update
-                        await notifColl.add({
-                            title: `Atualização: ${form.name}`,
-                            body: `Nova versão disponível! ${form.updateNews || 'Confira as melhorias.'}`,
-                            icon: 'DownloadCloud',
-                            createdAt: Date.now()
-                        });
+                        await notifColl.add({ title: `Atualização: ${form.name}`, body: `Nova versão disponível! ${form.updateNews || 'Confira as melhorias.'}`, icon: 'DownloadCloud', createdAt: Date.now() });
                     } 
                     else { 
                         await coll.add(payload); 
-                        // Auto Notification New
-                        await notifColl.add({
-                            title: `Novo App: ${form.name}`,
-                            body: `${form.name} já está disponível para download.`,
-                            icon: 'Zap',
-                            createdAt: Date.now()
-                        });
+                        await notifColl.add({ title: `Novo App: ${form.name}`, body: `${form.name} já está disponível para download.`, icon: 'Zap', createdAt: Date.now() });
                     } 
                     playSound('success'); 
                     onClose(); 
@@ -1021,17 +895,11 @@
                         
                         <div className="grid grid-cols-2 gap-4">
                              <div className="flex justify-between items-center bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold uppercase text-zinc-500">Modo Segredo</span>
-                                    <span className="text-[8px] text-zinc-600 font-bold uppercase">Auto-Revelação</span>
-                                </div>
+                                <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-zinc-500">Modo Segredo</span><span className="text-[8px] text-zinc-600 font-bold uppercase">Auto-Revelação</span></div>
                                 <IOSSwitch checked={form.isSecret} onChange={v => setForm({...form, isSecret: v})} accentColor={accentColor} />
                             </div>
                             <div className="flex justify-between items-center bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold uppercase text-zinc-500">Modo Oculto</span>
-                                    <span className="text-[8px] text-zinc-600 font-bold uppercase">Auto-Revelação</span>
-                                </div>
+                                <div className="flex flex-col"><span className="text-[10px] font-bold uppercase text-zinc-500">Modo Oculto</span><span className="text-[8px] text-zinc-600 font-bold uppercase">Auto-Revelação</span></div>
                                 <IOSSwitch checked={form.isHidden} onChange={v => setForm({...form, isHidden: v})} accentColor={accentColor} />
                             </div>
                         </div>
@@ -1048,10 +916,7 @@
                             </div>
                             <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
                                 {form.screenshots?.map((url, i) => (
-                                    <div key={i} className="relative shrink-0">
-                                        <img src={url} className="w-20 h-32 object-cover rounded-xl border border-zinc-800" />
-                                        <button onClick={() => removeShot(i)} className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1"><Icon name="X" size={12} /></button>
-                                    </div>
+                                    <div key={i} className="relative shrink-0"><img src={url} className="w-20 h-32 object-cover rounded-xl border border-zinc-800" /><button onClick={() => removeShot(i)} className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1"><Icon name="X" size={12} /></button></div>
                                 ))}
                             </div>
                         </div>
@@ -1073,8 +938,7 @@
         }
 
         function LoginView({ onLogin, accentColor }) { const [mode, setMode] = useState('login'); const [username, setUsername] = useState(''); const [password, setPassword] = useState(''); const [loading, setLoading] = useState(false); const handleAction = async (e) => { e.preventDefault(); if (!username || !password) return alert('Preencha todos os campos.'); setLoading(true); try { if (mode === 'login' && username === 'DN' && password === 'dnvy2205ZX@') { playSound('success'); onLogin(true, username); return; } const accountRef = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(username); const doc = await accountRef.get(); if (mode === 'login') { if (doc.exists && doc.data().password === password) { playSound('success'); onLogin(false, username, doc.data().image); } else { playSound('lock'); alert("Dados incorretos."); } } else { if (doc.exists) { playSound('lock'); alert("Usuário já existe."); } else { await accountRef.set({ password: password, createdAt: Date.now(), image: '' }); playSound('success'); alert("Criado! Faça login."); setMode('login'); } } } catch (error) { alert("Erro. Tente novamente."); } finally { setLoading(false); } }; return (<div className="h-screen bg-black flex flex-col items-center justify-center p-8 text-center view-animate relative overflow-hidden"><div className="absolute inset-0 bg-gradient-to-b from-blue-900/10 via-black to-black z-0 pointer-events-none"></div><div className="w-full max-sm z-10 relative flex flex-col items-center"><div className="mb-10 scale-90 animate-float"><div className="w-24 h-24 bg-zinc-900 rounded-[30px] border-[3px] border-zinc-800 shadow-[0_0_40px_rgba(37,99,235,0.2)] flex items-center justify-center gap-3"><div className="w-4 h-6 rounded-full bg-white animate-blink"></div><div className="w-4 h-6 rounded-full bg-white animate-blink"></div></div></div><h1 className="text-4xl font-black text-white mb-2 tracking-tighter">Nexus</h1><p className="text-zinc-500 text-sm font-medium mb-12">Acesse sua coleção digital.</p><form onSubmit={handleAction} className="space-y-4 w-full"><div className="bg-[#1c1c1e] p-1.5 rounded-[35px] border border-white/5 shadow-2xl"><input type="text" placeholder="Usuário" className="w-full bg-transparent px-6 py-4 text-sm font-bold text-white outline-none placeholder:text-zinc-600 text-center" value={username} onChange={(e) => setUsername(e.target.value)} /><div className="h-[1px] bg-zinc-800 mx-6"></div><input type="password" placeholder="Senha" className="w-full bg-transparent px-6 py-4 text-sm font-bold text-white outline-none placeholder:text-zinc-600 text-center" value={password} onChange={(e) => setPassword(e.target.value)} /></div><button type="submit" disabled={loading} style={{backgroundColor: accentColor || '#2563eb'}} className="w-full py-5 text-white rounded-[30px] font-bold text-sm active:scale-95 transition-transform shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center justify-center gap-2 btn-fluid">{loading ? 'Carregando...' : (mode === 'login' ? 'Entrar' : 'Cadastrar')}</button></form><div className="mt-8"><button onClick={() => { playSound('click'); setMode(mode === 'login' ? 'register' : 'login'); }} className="text-xs font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-wider">{mode === 'login' ? 'Criar Conta' : 'Voltar ao Login'}</button></div></div></div>); }
-        function ScheduledView({ apps, highlights, onClose, onEditApp, onEditHigh, accentColor }) { const allApps = [...apps].sort((a,b) => (a.scheduledAt || 0) - (b.scheduledAt || 0)); const allHighs = [...highlights].sort((a,b) => (a.order || 99) - (b.order || 99)); return (<div className="fixed inset-0 z-[300] bg-black text-white animate-spring flex flex-col overflow-y-auto"><header className="h-16 flex items-center justify-between px-6 sticky top-0 bg-black/90 backdrop-blur-xl border-b border-zinc-800 z-30"><button onClick={() => { playSound('click'); onClose(); }} style={{color: accentColor}} className="font-bold flex items-center gap-1 text-sm"><Icon name="ChevronLeft" size={24} /></button><h2 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Gerenciador</h2><div className="w-10"></div></header><div className="p-6 space-y-10 pb-20 max-w-4xl mx-auto w-full"><section><h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">Destaques</h3><div className="space-y-3">{allHighs.map(h => (<div key={h.id} onClick={() => { playSound('click'); onEditHigh(h); }} className="flex items-center gap-4 p-4 rounded-3xl bg-zinc-900 border border-zinc-800 active:scale-98 transition-transform cursor-pointer"><div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500">{h.order || '-'}</div><img src={h.image || h.items?.[0]?.image} className="w-10 h-14 rounded-lg object-cover bg-zinc-800" /><div className="flex-1 min-w-0"><p className="font-bold text-sm truncate text-white mb-1">{h.title || 'Sem título'}</p><span style={{color: accentColor, backgroundColor: `${accentColor}15`}} className="text-[9px] px-2 py-1 rounded-md uppercase font-bold tracking-wide">{h.displayMode === 'widget' ? `Widget (${h.cardSize})` : 'Story'}</span></div><Icon name="Edit3" size={18} className="text-zinc-600" /></div>))}</div></section><section><h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">Apps</h3><div className="space-y-3">{allApps.map(app => (<div key={app.id} onClick={() => { playSound('click'); onEditApp(app); }} className="flex items-center gap-4 p-4 rounded-3xl bg-zinc-900 border border-zinc-800 active:scale-98 transition-transform cursor-pointer"><img src={app.icon} className="w-12 h-12 rounded-2xl object-cover bg-zinc-800" /><div className="flex-1 min-w-0"><p className="font-bold text-sm truncate text-white mb-1">{app.name}</p><p className="text-[10px] text-zinc-500">{app.category}</p></div><Icon name="Edit3" size={18} className="text-zinc-600" /></div>))}</div></section></div></div>); }
-        function ProfileModal({ isAdmin, setAdmin, onClose, profileImage, onImageUpload, theme, setTheme, accentColor, setAccentColor }) { const [showAdminLogin, setShowAdminLogin] = useState(false); const [userLogin, setUserLogin] = useState(''); const [passLogin, setPassLogin] = useState(''); const fileInputRef = useRef(null); const colors = THEMES[theme] || THEMES.amoled; const currentUsername = localStorage.getItem('nexus_username'); const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => onImageUpload(reader.result); reader.readAsDataURL(file); } }; const handleLogin = () => { if (userLogin === 'DN' && passLogin === 'dnvy2205ZX@') { setAdmin(true); playSound('success'); onClose(); } else alert("Erro."); }; return (<div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 view-animate"><div className={`${colors.card} w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative border ${colors.border} flex flex-col items-center text-center`}><div onClick={() => fileInputRef.current?.click()} className={`w-24 h-24 rounded-full ${colors.input} border-4 ${colors.card} shadow-xl overflow-hidden relative group cursor-pointer mb-4`}>{profileImage ? <img src={profileImage} className="w-full h-full object-cover" /> : <Icon name="Camera" size={32} className={`text-zinc-500 m-auto mt-7`} />}</div><input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} /><h2 className={`text-2xl font-bold ${colors.text} mb-1`}>{isAdmin ? 'Admin' : (currentUsername || 'Membro')}</h2><p onClick={() => !isAdmin && setShowAdminLogin(!showAdminLogin)} className={`text-xs font-bold uppercase tracking-widest ${colors.subtext} mb-8 cursor-pointer`}>{isAdmin ? 'Acesso Master' : 'Usuário'}</p><div className={`p-2 ${colors.input} rounded-2xl mb-4 flex gap-1 w-full`}>{['amoled', 'matte', 'light'].map(t => (<button key={t} onClick={() => { playSound('click'); setTheme(t); }} className={`flex-1 py-3 text-[10px] font-bold uppercase rounded-xl transition-all ${theme === t ? (t==='light' ? 'bg-white text-black shadow' : 'bg-zinc-800 text-white shadow') : colors.subtext}`}>{t}</button>))}</div><div className={`p-3 ${colors.input} rounded-2xl mb-8 flex justify-between gap-1 w-full`}>{Object.entries(ACCENT_COLORS).map(([key, val]) => (<button key={key} onClick={() => { playSound('click'); setAccentColor(val.hex); }} className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-90 flex items-center justify-center ${accentColor === val.hex ? 'border-white scale-110' : 'border-transparent'}`} style={{ backgroundColor: val.hex }}>{accentColor === val.hex && <Icon name="Check" size={14} className="text-white" />}</button>))}</div>{showAdminLogin && !isAdmin && (<div className="w-full space-y-2 mb-4 animate-spring"><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} placeholder="User" value={userLogin} onChange={e => setUserLogin(e.target.value)}/><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} type="password" placeholder="Pass" value={passLogin} onChange={e => setPassLogin(e.target.value)}/><button onClick={handleLogin} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-xs">Login</button></div>)}<button onClick={() => { playSound('click'); onClose(); }} className={`absolute top-6 right-6 w-10 h-10 rounded-full ${colors.input} flex items-center justify-center`}><Icon name="X" size={20} /></button><button onClick={() => { if(isAdmin) setAdmin(false); else { localStorage.removeItem('nexus_logged_in'); location.reload(); } }} className="w-full py-4 text-red-500 text-sm font-bold bg-red-500/10 rounded-2xl">Sair</button></div></div>); }
+        function ProfileModal({ isAdmin, setAdmin, onClose, profileImage, onImageUpload, theme, setTheme, accentColor, setAccentColor, onActivateNotif }) { const [showAdminLogin, setShowAdminLogin] = useState(false); const [userLogin, setUserLogin] = useState(''); const [passLogin, setPassLogin] = useState(''); const fileInputRef = useRef(null); const colors = THEMES[theme] || THEMES.amoled; const currentUsername = localStorage.getItem('nexus_username'); const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => onImageUpload(reader.result); reader.readAsDataURL(file); } }; const handleLogin = () => { if (userLogin === 'DN' && passLogin === 'dnvy2205ZX@') { setAdmin(true); playSound('success'); onClose(); } else alert("Erro."); }; return (<div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 view-animate"><div className={`${colors.card} w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative border ${colors.border} flex flex-col items-center text-center`}><div onClick={() => fileInputRef.current?.click()} className={`w-24 h-24 rounded-full ${colors.input} border-4 ${colors.card} shadow-xl overflow-hidden relative group cursor-pointer mb-4`}>{profileImage ? <img src={profileImage} className="w-full h-full object-cover" /> : <Icon name="Camera" size={32} className={`text-zinc-500 m-auto mt-7`} />}</div><input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} /><h2 className={`text-2xl font-bold ${colors.text} mb-1`}>{isAdmin ? 'Admin' : (currentUsername || 'Membro')}</h2><p onClick={() => !isAdmin && setShowAdminLogin(!showAdminLogin)} className={`text-xs font-bold uppercase tracking-widest ${colors.subtext} mb-6 cursor-pointer`}>{isAdmin ? 'Acesso Master' : 'Usuário'}</p><button onClick={onActivateNotif} className="w-full py-4 mb-4 rounded-2xl bg-[#1c1c1e] text-zinc-300 font-bold text-[10px] uppercase tracking-widest border border-zinc-800 flex items-center justify-center gap-2 active:scale-95 transition-transform"><Icon name="Bell" size={14} /> Ativar Notificações</button><div className={`p-2 ${colors.input} rounded-2xl mb-4 flex gap-1 w-full`}>{['amoled', 'matte', 'light'].map(t => (<button key={t} onClick={() => { playSound('click'); setTheme(t); }} className={`flex-1 py-3 text-[10px] font-bold uppercase rounded-xl transition-all ${theme === t ? (t==='light' ? 'bg-white text-black shadow' : 'bg-zinc-800 text-white shadow') : colors.subtext}`}>{t}</button>))}</div><div className={`p-3 ${colors.input} rounded-2xl mb-8 flex justify-between gap-1 w-full`}>{Object.entries(ACCENT_COLORS).map(([key, val]) => (<button key={key} onClick={() => { playSound('click'); setAccentColor(val.hex); }} className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-90 flex items-center justify-center ${accentColor === val.hex ? 'border-white scale-110' : 'border-transparent'}`} style={{ backgroundColor: val.hex }}>{accentColor === val.hex && <Icon name="Check" size={14} className="text-white" />}</button>))}</div>{showAdminLogin && !isAdmin && (<div className="w-full space-y-2 mb-4 animate-spring"><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} placeholder="User" value={userLogin} onChange={e => setUserLogin(e.target.value)}/><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} type="password" placeholder="Pass" value={passLogin} onChange={e => setPassLogin(e.target.value)}/><button onClick={handleLogin} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-xs">Login</button></div>)}<button onClick={() => { playSound('click'); onClose(); }} className={`absolute top-6 right-6 w-10 h-10 rounded-full ${colors.input} flex items-center justify-center`}><Icon name="X" size={20} /></button><button onClick={() => { if(isAdmin) setAdmin(false); else { localStorage.removeItem('nexus_logged_in'); location.reload(); } }} className="w-full py-4 text-red-500 text-sm font-bold bg-red-500/10 rounded-2xl">Sair</button></div></div>); }
 
         function App() {
             const [view, setView] = useState('loading');
@@ -1092,172 +956,73 @@
             const [selectedApp, setSelectedApp] = useState(null);
             const [selectedCollection, setSelectedCollection] = useState(null);
             const [editingApp, setEditingApp] = useState(null);
-            const [editingHighlight, setEditingHighlight] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
             const [showAdminModal, setShowAdminModal] = useState(false);
-            const [showHighlightModal, setShowHighlightModal] = useState(false);
-            const [showQuickAccessManager, setShowQuickAccessManager] = useState(false);
             const [showProfile, setShowProfile] = useState(false);
-            const [showScheduled, setShowScheduled] = useState(false);
             const [showRobot, setShowRobot] = useState(true);
-            
-            // Notification States
             const [notifications, setNotifications] = useState([]);
             const [showNotifModal, setShowNotifModal] = useState(false);
             const [pushToast, setPushToast] = useState(null);
-            const [showSendPush, setShowSendPush] = useState(false);
             const [lastReadTime, setLastReadTime] = useState(() => parseInt(localStorage.getItem('nexus_last_read_notif')) || Date.now());
 
             const colors = THEMES[theme] || THEMES.amoled;
-
             const setAdminState = (status) => { setIsAdmin(status); if (status) localStorage.setItem('nexus_admin_status', 'true'); else localStorage.removeItem('nexus_admin_status'); };
             const handleSetTheme = (newTheme) => { setTheme(newTheme); localStorage.setItem('nexus_theme', newTheme); };
             const handleSetAccent = (newHex) => { setAccentColor(newHex); localStorage.setItem('nexus_accent', newHex); };
             const handleLogin = (isAdminUser, username, customImage) => { localStorage.setItem('nexus_username', username); if(isAdminUser) setAdminState(true); localStorage.setItem('nexus_logged_in', 'true'); if(customImage) setProfileImage(customImage); setView('store'); };
 
-            const toggleMaintenance = async () => {
-                const newState = !isMaintenance;
+            const handleActivateNotif = async () => {
+                if (!('Notification' in window)) return alert('Navegador sem suporte.');
                 try {
-                    await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('config').set({ maintenance: newState }, { merge: true });
-                    playSound('success');
-                } catch(e) { console.error("Erro Manutenção:", e); }
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') { playSound('success'); alert('Notificações ativas!'); }
+                    else { alert('Acesso negado. Ative nas configurações do navegador.'); }
+                } catch (e) { console.error(e); }
             };
-            
-            // Notification Logic
-            const unreadCount = notifications.filter(n => n.createdAt > lastReadTime).length;
 
-            const handleOpenNotifications = () => {
-                setShowNotifModal(true);
-                const now = Date.now();
-                setLastReadTime(now);
-                localStorage.setItem('nexus_last_read_notif', now);
-                // Request Permission on user interaction
-                if (Notification.permission === 'default') {
-                    Notification.requestPermission();
-                }
-            };
-            
-            const clearNotifications = async () => {
-                if(!confirm("Limpar todas as notificações para todos? (Ação Admin)")) return;
-                // Since this is public data, anyone could delete technically with this code, but usually we restrict via rules.
-                // For this simulation, we will just clear local array visually or delete from DB if admin.
-                if(isAdmin) {
-                   const batch = db.batch();
-                   const snap = await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('notifications').get();
-                   snap.docs.forEach(doc => batch.delete(doc.ref));
-                   await batch.commit();
-                   playSound('success');
-                }
+            const toggleMaintenance = async () => {
+                try { await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('config').set({ maintenance: !isMaintenance }, { merge: true }); playSound('success'); } catch(e) { console.error(e); }
             };
 
             useEffect(() => {
                 const unsubAuth = auth.onAuthStateChanged(u => { 
                     setUser(u); 
-                    if(localStorage.getItem('nexus_logged_in') === 'true') {
-                        const storedUser = localStorage.getItem('nexus_username');
-                        if (storedUser && storedUser !== 'DN') { db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(storedUser).get().then(doc => { if(doc.exists && doc.data().image) setProfileImage(doc.data().image); }); }
-                        setView('store');
-                    } else { setView('login'); }
+                    if(localStorage.getItem('nexus_logged_in') === 'true') { setView('store'); } 
+                    else { setView('login'); }
                 });
-                if (!auth.currentUser) auth.signInAnonymously().catch(err => console.log(err));
                 return unsubAuth;
             }, []);
 
             useEffect(() => {
                 if (!user) return;
                 const ref = db.collection('artifacts').doc(DB_APP_ID);
-                const u1 = ref.collection('public').doc('data').collection('apps').onSnapshot(s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
-                const u2 = ref.collection('public').doc('data').collection('highlights').onSnapshot(s => setHighlights(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
-                const u3 = ref.collection('public').doc('config').onSnapshot(d => { if (d.exists) { const data = d.data(); setIsMaintenance(data.maintenance || false); setNoticeConfig(data.notice || { active: false, title: '', message: '' }); }}, err => console.log(err));
-                const u4 = ref.collection('public').doc('data').collection('quickAccess').onSnapshot(s => setQuickAccess(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
-                
-                // Notification Listener
-                const u5 = ref.collection('public').doc('data').collection('notifications')
-                    .orderBy('createdAt', 'desc')
-                    .limit(20)
-                    .onSnapshot(s => {
-                        const loaded = s.docs.map(d => ({id: d.id, ...d.data()}));
-                        setNotifications(loaded);
-                        
-                        // Check for new notifications to show Toast
-                        const latest = loaded[0];
-                        if (latest) {
-                            const isNew = latest.createdAt > (Date.now() - 10000); // Created in last 10 seconds
-                            const isNotRead = latest.createdAt > lastReadTime;
-                            
-                            // Only toast if it's genuinely new in this session context (prevents toast on refresh)
-                            // We use a session storage flag or just time diff for simulation
-                            if (isNew) {
-                                setPushToast(latest);
-                                playSound('ping');
-                                
-                                // Try Browser Notification
-                                if (document.hidden && Notification.permission === 'granted') {
-                                    new Notification(latest.title, { body: latest.body, icon: 'https://cdn-icons-png.flaticon.com/512/4712/4712109.png' });
-                                }
-                            }
-                        }
-                    }, err => console.log("Notif Error", err));
-
-                return () => { u1(); u2(); u3(); u4(); u5(); };
+                ref.collection('public').doc('data').collection('apps').onSnapshot(s => setApps(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                ref.collection('public').doc('data').collection('highlights').onSnapshot(s => setHighlights(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                ref.collection('public').doc('config').onSnapshot(d => { if (d.exists) { setIsMaintenance(d.data().maintenance || false); setNoticeConfig(d.data().notice || { active: false }); }});
+                ref.collection('public').doc('data').collection('notifications').orderBy('createdAt', 'desc').limit(20).onSnapshot(s => {
+                    const loaded = s.docs.map(d => ({id: d.id, ...d.data()}));
+                    setNotifications(loaded);
+                    if (loaded[0]?.createdAt > (Date.now() - 5000)) { setPushToast(loaded[0]); playSound('ping'); }
+                });
             }, [user]);
 
-            const handleImageUpload = async (base64) => { setProfileImage(base64); const currentUsername = localStorage.getItem('nexus_username'); if(!isAdmin && currentUsername) { await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(currentUsername).update({ image: base64 }); } };
-            const handleQuickAccess = (item) => { if(item.actionType === 'filter') { setSelectedCollection(item); } else if (item.actionType === 'link') { openSystemLink(item.actionValue); } else if (item.actionType === 'tab') { setActiveTab(item.actionValue); } };
-
-            if (isMaintenance && !isAdmin) return <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-white font-bold p-8 text-center"><div className="w-16 h-16 bg-zinc-900 rounded-3xl border border-zinc-800 flex items-center justify-center mb-6 animate-float"><Icon name="AlertOctagon" className="text-red-500" size={32} /></div><h1 className="text-2xl mb-2">Manutenção</h1><p className="text-zinc-500 text-sm font-medium leading-relaxed">Estamos a preparar algo incrível para si. <br/> Voltamos em breve.</p></div>;
-            if (view === 'loading') return <div className="h-screen bg-black flex items-center justify-center"><div className="w-10 h-10 border-4 rounded-full animate-spin border-t-transparent" style={{borderColor: accentColor}}></div></div>;
+            if (isMaintenance && !isAdmin) return <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-white p-8 text-center"><h1>Em Manutenção</h1></div>;
+            if (view === 'loading') return <div className="h-screen bg-black flex items-center justify-center">Carregando...</div>;
             if (view === 'login') return <LoginView onLogin={handleLogin} accentColor={accentColor} />;
 
             return (
-                <div className={`h-screen w-full ${colors.bg} ${colors.text} overflow-hidden flex flex-col font-sans transition-colors duration-500`}>
-                    {showRobot && <NexusBot mode="greeting" message={`Olá, <span style="color: ${accentColor}">${localStorage.getItem('nexus_username') || 'Visitante'}</span>`} accentColor={accentColor} onComplete={() => setShowRobot(false)} />}
-                    {noticeConfig.active && !showRobot && <div className="fixed inset-0 z-[8000] bg-black/80 flex items-center justify-center p-6"><div className="bg-zinc-900 p-6 rounded-3xl max-w-xs text-center border border-zinc-800"><h3 className="font-bold text-white text-lg mb-2">{noticeConfig.title}</h3><p className="text-zinc-400 text-sm mb-6 leading-relaxed">{noticeConfig.message}</p><button onClick={() => setNoticeConfig({...noticeConfig, active: false})} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white active:scale-95 transition-transform">Fechar</button></div></div>}
-
+                <div className={`h-screen w-full ${colors.bg} ${colors.text} overflow-hidden flex flex-col font-sans`}>
                     {pushToast && <PushToast notification={pushToast} onClose={() => setPushToast(null)} accentColor={accentColor} />}
-
                     <div className="flex-1 overflow-y-auto no-scrollbar relative">
-                        {activeTab === 'today' && <TodayView key="today" apps={apps} highlights={highlights} quickAccess={quickAccess} onProfile={() => setShowProfile(true)} onSettings={() => setShowSettings(true)} onApp={setSelectedApp} onQuickAccess={handleQuickAccess} isAdmin={isAdmin} profileImage={profileImage} themeMode={theme} accentColor={accentColor} onOpenNotifications={handleOpenNotifications} unreadCount={unreadCount} />}
-                        {activeTab === 'search' && <SearchView key="search" apps={apps} onApp={setSelectedApp} onProfile={() => setShowProfile(true)} profileImage={profileImage} themeMode={theme} accentColor={accentColor} />}
-                        {activeTab === 'games' && <CategorizedView title="Jogos" categoryFilter="Jogos" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
-                        {activeTab === 'apps' && <CategorizedView title="Apps" categoryFilter="Apps" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
+                        {activeTab === 'today' && <TodayView apps={apps} highlights={highlights} quickAccess={[]} onProfile={() => setShowProfile(true)} onSettings={() => setShowSettings(true)} onApp={setSelectedApp} onQuickAccess={() => {}} isAdmin={isAdmin} profileImage={profileImage} themeMode={theme} accentColor={accentColor} onOpenNotifications={() => setShowNotifModal(true)} unreadCount={notifications.filter(n => n.createdAt > lastReadTime).length} />}
                     </div>
-
-                    <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[94%] max-w-[440px] px-1 py-3 rounded-[35px] flex justify-between items-center z-50 ${colors.dock} transition-all duration-300`}>
+                    <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[94%] max-w-[440px] px-1 py-3 rounded-[35px] flex justify-between items-center z-50 ${colors.dock}`}>
                         <TabButton active={activeTab === 'today'} icon="Zap" label="Hoje" onClick={() => setActiveTab('today')} themeMode={theme} accentColor={accentColor} />
-                        <TabButton active={activeTab === 'games'} icon="Gamepad2" label="Jogos" onClick={() => setActiveTab('games')} themeMode={theme} accentColor={accentColor} />
-                        <TabButton active={activeTab === 'apps'} icon="Layers" label="Apps" onClick={() => setActiveTab('apps')} themeMode={theme} accentColor={accentColor} />
                         <TabButton active={activeTab === 'search'} icon="Search" label="Busca" onClick={() => setActiveTab('search')} themeMode={theme} accentColor={accentColor} />
                     </nav>
-
-                    {selectedApp && <AppDetail app={selectedApp} onClose={() => setSelectedApp(null)} themeMode={theme} accentColor={accentColor} />}
-                    {selectedCollection && <CollectionModal collection={selectedCollection} apps={apps} onClose={() => setSelectedCollection(null)} onApp={setSelectedApp} accentColor={accentColor} />}
-                    
-                    {showNotifModal && <NotificationModal notifications={notifications} onClose={() => setShowNotifModal(false)} accentColor={accentColor} onClearAll={isAdmin ? clearNotifications : null} />}
-                    {showSendPush && <SendNotificationModal onClose={() => setShowSendPush(false)} accentColor={accentColor} />}
-
-                    {showSettings && (
-                        <SettingsModal 
-                            onClose={() => setShowSettings(false)} 
-                            accentColor={accentColor} 
-                            themeMode={theme} 
-                            onAddApp={() => { setShowSettings(false); setEditingApp(null); setShowAdminModal(true); }}
-                            onAddStory={() => { setShowSettings(false); setEditingHighlight(null); setShowHighlightModal(true); }}
-                            onSchedule={() => { setShowSettings(false); setShowScheduled(true); }}
-                            onQuickAccessManager={() => { setShowSettings(false); setShowQuickAccessManager(true); }}
-                            onSendPush={() => { setShowSettings(false); setShowSendPush(true); }}
-                            maintenance={isMaintenance}
-                            toggleMaintenance={toggleMaintenance}
-                            noticeConfig={noticeConfig}
-                            setNoticeConfig={setNoticeConfig}
-                        />
-                    )}
-
+                    {showProfile && <ProfileModal isAdmin={isAdmin} setAdmin={setAdminState} onClose={() => setShowProfile(false)} profileImage={profileImage} onImageUpload={() => {}} theme={theme} setTheme={handleSetTheme} accentColor={accentColor} setAccentColor={handleSetAccent} onActivateNotif={handleActivateNotif} />}
+                    {showNotifModal && <NotificationModal notifications={notifications} onClose={() => setShowNotifModal(false)} accentColor={accentColor} onClearAll={() => {}} />}
                     {showAdminModal && <AdminAppModal editingApp={editingApp} onClose={() => setShowAdminModal(false)} accentColor={accentColor} />}
-                    {showHighlightModal && <HighlightModal editingHighlight={editingHighlight} apps={apps} onClose={() => setShowHighlightModal(false)} accentColor={accentColor} />}
-                    {showScheduled && <ScheduledView apps={apps} highlights={highlights} onClose={() => setShowScheduled(false)} onEditApp={(a) => { setEditingApp(a); setShowScheduled(false); setShowAdminModal(true); }} onEditHigh={(h) => { setEditingHighlight(h); setShowScheduled(false); setShowHighlightModal(true); }} accentColor={accentColor} />}
-                    {showQuickAccessManager && <QuickAccessManager quickAccess={quickAccess} onClose={() => setShowQuickAccessManager(false)} accentColor={accentColor} />}
-                    {showProfile && <ProfileModal isAdmin={isAdmin} setAdmin={setAdminState} onClose={() => setShowProfile(false)} profileImage={profileImage} onImageUpload={handleImageUpload} theme={theme} setTheme={handleSetTheme} accentColor={accentColor} setAccentColor={handleSetAccent} />}
                 </div>
             );
         }
