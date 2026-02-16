@@ -23,8 +23,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <!-- ADICIONADO: Firebase Messaging -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -64,10 +62,16 @@
             75% { transform: translateX(5px); }
         }
 
+        @keyframes slideDown {
+            0% { transform: translateY(-100%); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
         .view-animate { animation: softFade 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
         .animate-spring { animation: springUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards; }
         .animate-float { animation: floatBot 5s ease-in-out infinite; }
         .animate-shake { animation: shake 0.3s eaze-in-out; }
+        .animate-slide-down { animation: slideDown 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards; }
         
         .onyx-card {
             background-color: #0c0c0e;
@@ -131,6 +135,14 @@
             text-transform: uppercase;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
+        
+        .notification-toast {
+            background: rgba(28, 28, 30, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
     </style>
 </head>
 <body>
@@ -139,7 +151,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const APP_VERSION = "6.4.1 - Push Notifications"; 
+        const APP_VERSION = "6.5.1 - Auto Notifications"; 
 
         const firebaseConfig = {
             apiKey: "AIzaSyDcWSyP6S7LDuGQ1ZjFqKAHCZ8mjwJhEKY",
@@ -153,16 +165,6 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-        
-        // Inicialização do Messaging
-        let messaging = null;
-        try {
-            if (firebase.messaging.isSupported()) {
-                messaging = firebase.messaging();
-            }
-        } catch (e) {
-            console.log("Push notifications not supported in this environment");
-        }
         
         const DB_APP_ID = 'nexus-hub-permanent-vault';
 
@@ -182,7 +184,7 @@
                 case 'close': playTone(300, 'sine', 0.15, 0.2, 0); break;
                 case 'success': playTone(440, 'sine', 0.2, 0.3, 0); playTone(659, 'sine', 0.4, 0.3, 0.1); break;
                 case 'lock': playTone(150, 'sawtooth', 0.3, 0.2); break;
-                case 'notify': playTone(1000, 'sine', 0.1, 0.3); playTone(1500, 'sine', 0.3, 0.3, 0.1); break;
+                case 'ping': playTone(1000, 'sine', 0.1, 0.3); playTone(1500, 'sine', 0.3, 0.2, 0.1); break;
             }
         };
 
@@ -229,18 +231,114 @@
             return <video src={url} poster={image} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />; 
         }
         
+        // --- NEW NOTIFICATION COMPONENTS ---
+        
+        function PushToast({ notification, onClose, accentColor }) {
+            if (!notification) return null;
+            return (
+                <div onClick={onClose} className="fixed top-4 left-4 right-4 z-[9999] notification-toast rounded-[28px] p-4 flex items-center gap-4 animate-slide-down cursor-pointer active:scale-95 transition-transform">
+                    <div className="w-12 h-12 rounded-2xl bg-black/50 flex items-center justify-center border border-white/10 shrink-0">
+                        <Icon name={notification.icon || 'Bell'} size={24} style={{color: accentColor}} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-0.5">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Nova Notificação</p>
+                            <span className="text-[9px] text-zinc-600">Agora</span>
+                        </div>
+                        <h4 className="font-bold text-white text-sm leading-tight">{notification.title}</h4>
+                        <p className="text-xs text-zinc-400 truncate mt-0.5">{notification.body}</p>
+                    </div>
+                </div>
+            );
+        }
+
+        function NotificationModal({ notifications, onClose, accentColor, onClearAll }) {
+            return (
+                <div className="fixed inset-0 z-[300] bg-black view-animate flex flex-col">
+                    <header className="px-6 pt-14 pb-4 flex justify-between items-center bg-black/90 backdrop-blur-xl sticky top-0 z-20">
+                        <div>
+                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Central</p>
+                            <h1 className="text-3xl font-extrabold tracking-tight text-white">Notificações</h1>
+                        </div>
+                        <div className="flex gap-2">
+                             {notifications.length > 0 && <button onClick={onClearAll} className="w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center font-bold text-zinc-500"><Icon name="Trash" size={18} /></button>}
+                            <button onClick={onClose} style={{color: accentColor}} className="w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center font-bold"><Icon name="X" size={20} /></button>
+                        </div>
+                    </header>
+                    <div className="p-6 space-y-3 overflow-y-auto pb-40">
+                        {notifications.length === 0 ? (
+                            <div className="text-center text-zinc-500 mt-20 flex flex-col items-center">
+                                <div className="w-16 h-16 rounded-full bg-[#1c1c1e] flex items-center justify-center mb-4"><Icon name="BellOff" size={24} /></div>
+                                <p className="font-bold text-sm">Sem notificações</p>
+                            </div>
+                        ) : (
+                            notifications.map(notif => (
+                                <div key={notif.id} className="flex gap-4 p-4 rounded-[26px] bg-[#121212] border border-zinc-800 animate-spring">
+                                    <div className="shrink-0 pt-1">
+                                         <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center border border-zinc-800">
+                                            <Icon name={notif.icon || 'Bell'} size={20} className="text-zinc-400" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex justify-between items-start">
+                                            <h4 className="font-bold text-white text-sm mb-1">{notif.title}</h4>
+                                            <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-wide">{formatShortDate(notif.createdAt)}</span>
+                                        </div>
+                                        <p className="text-xs text-zinc-400 leading-relaxed">{notif.body}</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function SendNotificationModal({ onClose, accentColor }) {
+            const [form, setForm] = useState({ title: '', body: '', icon: 'Zap' });
+            const [loading, setLoading] = useState(false);
+
+            const send = async () => {
+                if(!form.title || !form.body) return alert("Preencha título e mensagem.");
+                setLoading(true);
+                try {
+                    await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('notifications').add({
+                        ...form,
+                        createdAt: Date.now()
+                    });
+                    playSound('success');
+                    onClose();
+                } catch(e) { alert("Erro: " + e.message); } finally { setLoading(false); }
+            };
+
+            return (
+                <div className="fixed inset-0 z-[400] bg-black flex items-end sm:items-center justify-center sm:p-6 bg-opacity-90 backdrop-blur-sm">
+                    <div className="bg-[#1c1c1e] w-full max-w-md p-6 rounded-t-[32px] sm:rounded-[32px] border border-zinc-800 shadow-2xl animate-spring">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-white">Nova Notificação</h3>
+                            <button onClick={onClose} className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center"><Icon name="X" size={16} /></button>
+                        </div>
+                        <div className="space-y-4 mb-6">
+                            <input className="w-full bg-black rounded-xl p-4 text-sm font-bold text-white outline-none border border-zinc-800 placeholder:text-zinc-600" placeholder="Título (ex: Nova Atualização)" value={form.title} onChange={e => setForm({...form, title: e.target.value})} />
+                            <textarea className="w-full bg-black rounded-xl p-4 text-sm font-medium text-white outline-none border border-zinc-800 placeholder:text-zinc-600 h-24 resize-none" placeholder="Mensagem..." value={form.body} onChange={e => setForm({...form, body: e.target.value})} />
+                            <div className="flex gap-2 items-center">
+                                <span className="text-xs font-bold text-zinc-500 uppercase mr-2">Ícone:</span>
+                                {['Zap', 'Bell', 'Star', 'AlertTriangle'].map(ic => (
+                                    <button key={ic} onClick={() => setForm({...form, icon: ic})} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${form.icon === ic ? 'bg-white text-black' : 'bg-black text-zinc-500'}`}><Icon name={ic} size={18} /></button>
+                                ))}
+                            </div>
+                        </div>
+                        <button onClick={send} disabled={loading} style={{backgroundColor: accentColor}} className="w-full py-4 rounded-xl font-bold text-white text-sm shadow-lg active:scale-95 transition-transform">{loading ? 'Enviando...' : 'Enviar Push'}</button>
+                    </div>
+                </div>
+            );
+        }
+
         function AppListItem({ app, onClick, isAdmin, lockedAppId, now, themeMode, accentColor }) { 
             const colors = THEMES[themeMode] || THEMES.amoled; 
-            
-            // LÓGICA MESTRA DE AGENDAMENTO
             const isFuture = app.scheduledAt && now < app.scheduledAt;
-            
-            // Modo "Em Breve" (Aguarda) ativa se: ainda é futuro OU (Modo Oculto está ativo E ainda é futuro)
             const isPreOrder = isFuture; 
-            
-            // Modo "Confidencial" ativa se: Modo Segredo/Bloqueado ativo E ainda é futuro
             const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
-            
             const isShake = lockedAppId === app.id; 
             const handleQuickDownload = (e) => { e.stopPropagation(); if (isPreOrder) return; playSound('click'); openSystemLink(app.downloadUrl); }; 
             
@@ -287,7 +385,6 @@
             const isFuture = app.scheduledAt && now < app.scheduledAt;
             const isPreOrder = isFuture; 
             const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
-            
             const handleDownload = (e) => { e.stopPropagation(); if(isPreOrder) return; playSound('click'); openSystemLink(app.downloadUrl); }; 
             
             return (
@@ -342,7 +439,6 @@
             const filteredApps = apps.filter(a => { 
                 const isFuture = a.scheduledAt && now < a.scheduledAt;
                 if (collection.actionType === 'filter') { 
-                    // Só aparece em coleções normais se: Já lançou (mesmo se as flags de segredo estiverem ligadas, elas perdem o efeito após a data)
                     const hasLaunched = !isFuture;
                     const releasedOrVisible = hasLaunched || a.isVisibleBeforeLaunch;
                     return a.category === collection.actionValue && releasedOrVisible && hasLaunched; 
@@ -529,7 +625,7 @@
             );
         }
 
-        function TodayView({ apps, highlights, quickAccess, onProfile, onSettings, onApp, onQuickAccess, isAdmin, profileImage, themeMode, accentColor }) {
+        function TodayView({ apps, highlights, quickAccess, onProfile, onSettings, onApp, onQuickAccess, isAdmin, profileImage, themeMode, accentColor, onOpenNotifications, unreadCount }) {
             const now = Date.now(); 
             const colors = THEMES[themeMode] || THEMES.amoled;
             const [lockedAppId, setLockedAppId] = useState(null); 
@@ -538,15 +634,11 @@
             const stories = activeHighlights.filter(h => !h.displayMode || h.displayMode === 'story'); 
             const widgets = activeHighlights.filter(h => h.displayMode === 'widget'); 
             
-            // FILTRO DE AGENDAMENTO (RIGOROSO)
-            // Está "Em Breve" apenas se a data de agendamento for maior que a data atual.
             const comingSoonApps = apps.filter(a => {
                 const isFuture = a.scheduledAt && now < a.scheduledAt;
                 return isFuture; 
             }).sort((a,b) => a.scheduledAt - b.scheduledAt).slice(0, 3); 
 
-            // Está "Lançado" se a data atual for maior ou igual ao agendamento.
-            // Ignora isSecret/isHidden se a data já chegou.
             const releasedApps = apps.filter(a => {
                 const hasLaunched = !a.scheduledAt || now >= a.scheduledAt;
                 return hasLaunched;
@@ -560,7 +652,6 @@
 
             const handleAppClick = (app) => { 
                 const isFuture = app.scheduledAt && now < app.scheduledAt;
-                // Só bloqueia visualmente se for no futuro
                 const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
                 if (isEffectiveLocked) { setLockedAppId(app.id); playSound('lock'); setTimeout(() => setLockedAppId(null), 500); return; } 
                 onApp(app); 
@@ -573,7 +664,11 @@
                             <p className={`text-[13px] font-bold ${colors.subtext} uppercase tracking-widest mb-1`}>{dayName}, {dayNum}</p>
                             <h1 className={`text-4xl font-black ${colors.text} tracking-tighter`}>Hoje</h1>
                         </div>
-                        <div className="flex gap-3 mb-1">
+                        <div className="flex gap-3 mb-1 items-center">
+                            <button onClick={() => { playSound('click'); onOpenNotifications(); }} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center transition-all border ${colors.border} relative`}>
+                                <Icon name="Bell" size={18} />
+                                {unreadCount > 0 && <div className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]"></div>}
+                            </button>
                             {isAdmin && (<button onClick={() => { playSound('click'); onSettings(); }} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center transition-all border ${colors.border}`}><Icon name="Settings" size={18} /></button>)}
                             <button onClick={() => { playSound('click'); onProfile(); }} className={`w-10 h-10 rounded-full ${colors.input} flex items-center justify-center overflow-hidden transition-all border ${colors.border}`}>{profileImage ? <img src={profileImage} className="w-full h-full object-cover" /> : <Icon name="User" size={18} />}</button>
                         </div>
@@ -718,7 +813,7 @@
         
         function QuickAccessManager({ quickAccess, onClose, accentColor }) { const [form, setForm] = useState({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); const [editingId, setEditingId] = useState(null); const [showIconPicker, setShowIconPicker] = useState(false); const [confirmDeleteId, setConfirmDeleteId] = useState(null); const handleSubmit = async () => { if(!form.title) return; try { const coll = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('quickAccess'); if(editingId) { await coll.doc(editingId).update(form); setEditingId(null); } else { await coll.add(form); } setForm({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); playSound('success'); } catch(e) { console.log(e); } }; const executeDelete = async (id) => { try { await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('quickAccess').doc(id).delete(); playSound('success'); setConfirmDeleteId(null); } catch(e) { console.log(e); } }; const edit = (item) => { setForm(item); setEditingId(item.id); }; return (<div className="fixed inset-0 z-[250] bg-black view-animate flex flex-col"><header className="px-6 pt-14 pb-4 flex justify-between items-center bg-zinc-900"><h2 className="text-xl font-bold text-white">Gerenciar Acesso Rápido</h2><button onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center"><Icon name="X" size={18} /></button></header><div className="flex-1 overflow-y-auto p-6 space-y-8"><div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 space-y-4"><h3 className="text-sm font-bold text-zinc-400 uppercase">{editingId ? 'Editar Botão' : 'Novo Botão'}</h3><input className="w-full bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Título (ex: Novos Jogos)" value={form.title} onChange={e => setForm({...form, title: e.target.value})} /><div className="flex gap-2"><input className="flex-1 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Rótulo (ex: DESTAQUE)" value={form.label} onChange={e => setForm({...form, label: e.target.value})} /><input className="w-1/3 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Ordem" type="number" value={form.order} onChange={e => setForm({...form, order: parseInt(e.target.value)})} /></div><div className="relative"><label className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Ícone</label><div className="flex gap-2"><input className="flex-1 bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder="Nome do Ícone (ex: Zap)" value={form.icon} onChange={e => setForm({...form, icon: e.target.value})} /><button onClick={() => setShowIconPicker(!showIconPicker)} className="w-12 bg-black rounded-xl border border-zinc-800 flex items-center justify-center text-zinc-300 active:bg-zinc-800"><Icon name={form.icon || 'HelpCircle'} /></button></div>{showIconPicker && (<div className="absolute top-full left-0 right-0 mt-2 bg-zinc-800 border border-zinc-700 p-3 rounded-2xl z-20 shadow-2xl grid grid-cols-6 gap-2 max-h-48 overflow-y-auto">{POPULAR_ICONS.map(iconName => (<button key={iconName} onClick={() => { setForm({...form, icon: iconName}); setShowIconPicker(false); }} className={`p-2 rounded-lg flex items-center justify-center hover:bg-black transition-colors ${form.icon === iconName ? 'bg-black text-white' : 'text-zinc-400'}`}><Icon name={iconName} size={20} /></button>))}</div>)}</div><div><label className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Tipo de Ação</label><select className="w-full bg-black text-white rounded-xl p-3 text-sm outline-none" value={form.actionType} onChange={e => setForm({...form, actionType: e.target.value})}><option value="filter">Abrir Coleção (Filtro)</option><option value="link">Abrir Link Externo</option><option value="tab">Mudar Aba (Principal)</option></select></div><input className="w-full bg-black rounded-xl p-3 text-sm text-white outline-none" placeholder={form.actionType === 'filter' ? 'Nome da Categoria (ex: Jogos)' : (form.actionType === 'link' ? 'URL (https://...)' : 'Nome da Aba (today, search)')} value={form.actionValue} onChange={e => setForm({...form, actionValue: e.target.value})} /><button onClick={handleSubmit} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-sm">{editingId ? 'Atualizar' : 'Criar'}</button>{editingId && <button onClick={() => { setEditingId(null); setForm({ title: '', label: 'DESTAQUE', icon: 'Zap', actionType: 'filter', actionValue: '', order: 1 }); }} className="w-full py-2 text-zinc-500 text-xs">Cancelar Edição</button>}</div><div className="space-y-2"><h3 className="text-sm font-bold text-zinc-400 uppercase">Botões Ativos</h3>{quickAccess.sort((a,b) => a.order - b.order).map(item => (<div key={item.id} className="flex items-center justify-between bg-zinc-900 p-3 rounded-2xl border border-zinc-800"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-zinc-400"><Icon name={item.icon} size={14} /></div><div><p className="font-bold text-white text-sm">{item.title}</p><p className="text-[10px] text-zinc-500">{item.actionType}: {item.actionValue}</p></div></div><div className="flex gap-2"><button onClick={() => edit(item)} className="p-2 bg-zinc-800 rounded-lg text-white"><Icon name="Edit2" size={14} /></button>{confirmDeleteId === item.id ? (<button onClick={() => executeDelete(item.id)} className="px-3 py-1 bg-red-600 text-white rounded-lg text-[10px] font-bold animate-spring">Confirmar?</button>) : (<button onClick={() => { playSound('click'); setConfirmDeleteId(item.id); }} className="p-2 bg-red-900/30 text-red-500 rounded-lg"><Icon name="Trash" size={14} /></button>)}</div></div>))}</div></div></div>); }
         
-        function SettingsModal({ onClose, accentColor, onAddApp, onAddStory, onSchedule, onQuickAccessManager, maintenance, toggleMaintenance, noticeConfig, setNoticeConfig }) { 
+        function SettingsModal({ onClose, accentColor, onAddApp, onAddStory, onSchedule, onQuickAccessManager, onSendPush, maintenance, toggleMaintenance, noticeConfig, setNoticeConfig }) { 
             const [savingNotice, setSavingNotice] = useState(false); 
             const saveNotice = async () => { playSound('click'); setSavingNotice(true); await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('config').set({ notice: noticeConfig }, { merge: true }); playSound('success'); setSavingNotice(false); alert("Salvo!"); }; 
             return (
@@ -734,7 +829,8 @@
                                 <div onClick={() => { playSound('click'); onAddApp(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="PlusSquare" className="text-white" size={22} /><span className={`font-bold text-white`}>Adicionar App</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
                                 <div onClick={() => { playSound('click'); onAddStory(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Layout" className="text-white" size={22} /><span className={`font-bold text-white`}>Novo Destaque</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
                                 <div onClick={() => { playSound('click'); onQuickAccessManager(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Zap" className="text-white" size={22} /><span className={`font-bold text-white`}>Acesso Rápido</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
-                                <div onClick={() => { playSound('click'); onSchedule(); }} className={`p-5 flex items-center justify-between active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Clock" className="text-white" size={22} /><span className={`font-bold text-white`}>Gerenciar Itens</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                                <div onClick={() => { playSound('click'); onSchedule(); }} className={`p-5 flex items-center justify-between border-b border-zinc-800 active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Clock" className="text-white" size={22} /><span className={`font-bold text-white`}>Gerenciar Itens</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
+                                <div onClick={() => { playSound('click'); onSendPush(); }} className={`p-5 flex items-center justify-between active:bg-white/5 cursor-pointer`}><div className="flex items-center gap-3"><Icon name="Bell" className="text-white" size={22} /><span className={`font-bold text-white`}>Enviar Notificação</span></div><Icon name="ChevronRight" className="text-zinc-600" size={18} /></div>
                             </div>
                         </section>
                         <section>
@@ -886,8 +982,28 @@
                 delete payload.id; 
                 try { 
                     const coll = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('apps'); 
-                    if (editingApp?.id) await coll.doc(editingApp.id).update(payload); 
-                    else await coll.add(payload); 
+                    const notifColl = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('notifications');
+
+                    if (editingApp?.id) { 
+                        await coll.doc(editingApp.id).update(payload);
+                        // Auto Notification Update
+                        await notifColl.add({
+                            title: `Atualização: ${form.name}`,
+                            body: `Nova versão disponível! ${form.updateNews || 'Confira as melhorias.'}`,
+                            icon: 'DownloadCloud',
+                            createdAt: Date.now()
+                        });
+                    } 
+                    else { 
+                        await coll.add(payload); 
+                        // Auto Notification New
+                        await notifColl.add({
+                            title: `Novo App: ${form.name}`,
+                            body: `${form.name} já está disponível para download.`,
+                            icon: 'Zap',
+                            createdAt: Date.now()
+                        });
+                    } 
                     playSound('success'); 
                     onClose(); 
                 } catch (e) { alert(e.message); } finally { setLoading(false); } 
@@ -958,64 +1074,7 @@
 
         function LoginView({ onLogin, accentColor }) { const [mode, setMode] = useState('login'); const [username, setUsername] = useState(''); const [password, setPassword] = useState(''); const [loading, setLoading] = useState(false); const handleAction = async (e) => { e.preventDefault(); if (!username || !password) return alert('Preencha todos os campos.'); setLoading(true); try { if (mode === 'login' && username === 'DN' && password === 'dnvy2205ZX@') { playSound('success'); onLogin(true, username); return; } const accountRef = db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(username); const doc = await accountRef.get(); if (mode === 'login') { if (doc.exists && doc.data().password === password) { playSound('success'); onLogin(false, username, doc.data().image); } else { playSound('lock'); alert("Dados incorretos."); } } else { if (doc.exists) { playSound('lock'); alert("Usuário já existe."); } else { await accountRef.set({ password: password, createdAt: Date.now(), image: '' }); playSound('success'); alert("Criado! Faça login."); setMode('login'); } } } catch (error) { alert("Erro. Tente novamente."); } finally { setLoading(false); } }; return (<div className="h-screen bg-black flex flex-col items-center justify-center p-8 text-center view-animate relative overflow-hidden"><div className="absolute inset-0 bg-gradient-to-b from-blue-900/10 via-black to-black z-0 pointer-events-none"></div><div className="w-full max-sm z-10 relative flex flex-col items-center"><div className="mb-10 scale-90 animate-float"><div className="w-24 h-24 bg-zinc-900 rounded-[30px] border-[3px] border-zinc-800 shadow-[0_0_40px_rgba(37,99,235,0.2)] flex items-center justify-center gap-3"><div className="w-4 h-6 rounded-full bg-white animate-blink"></div><div className="w-4 h-6 rounded-full bg-white animate-blink"></div></div></div><h1 className="text-4xl font-black text-white mb-2 tracking-tighter">Nexus</h1><p className="text-zinc-500 text-sm font-medium mb-12">Acesse sua coleção digital.</p><form onSubmit={handleAction} className="space-y-4 w-full"><div className="bg-[#1c1c1e] p-1.5 rounded-[35px] border border-white/5 shadow-2xl"><input type="text" placeholder="Usuário" className="w-full bg-transparent px-6 py-4 text-sm font-bold text-white outline-none placeholder:text-zinc-600 text-center" value={username} onChange={(e) => setUsername(e.target.value)} /><div className="h-[1px] bg-zinc-800 mx-6"></div><input type="password" placeholder="Senha" className="w-full bg-transparent px-6 py-4 text-sm font-bold text-white outline-none placeholder:text-zinc-600 text-center" value={password} onChange={(e) => setPassword(e.target.value)} /></div><button type="submit" disabled={loading} style={{backgroundColor: accentColor || '#2563eb'}} className="w-full py-5 text-white rounded-[30px] font-bold text-sm active:scale-95 transition-transform shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center justify-center gap-2 btn-fluid">{loading ? 'Carregando...' : (mode === 'login' ? 'Entrar' : 'Cadastrar')}</button></form><div className="mt-8"><button onClick={() => { playSound('click'); setMode(mode === 'login' ? 'register' : 'login'); }} className="text-xs font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-wider">{mode === 'login' ? 'Criar Conta' : 'Voltar ao Login'}</button></div></div></div>); }
         function ScheduledView({ apps, highlights, onClose, onEditApp, onEditHigh, accentColor }) { const allApps = [...apps].sort((a,b) => (a.scheduledAt || 0) - (b.scheduledAt || 0)); const allHighs = [...highlights].sort((a,b) => (a.order || 99) - (b.order || 99)); return (<div className="fixed inset-0 z-[300] bg-black text-white animate-spring flex flex-col overflow-y-auto"><header className="h-16 flex items-center justify-between px-6 sticky top-0 bg-black/90 backdrop-blur-xl border-b border-zinc-800 z-30"><button onClick={() => { playSound('click'); onClose(); }} style={{color: accentColor}} className="font-bold flex items-center gap-1 text-sm"><Icon name="ChevronLeft" size={24} /></button><h2 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Gerenciador</h2><div className="w-10"></div></header><div className="p-6 space-y-10 pb-20 max-w-4xl mx-auto w-full"><section><h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">Destaques</h3><div className="space-y-3">{allHighs.map(h => (<div key={h.id} onClick={() => { playSound('click'); onEditHigh(h); }} className="flex items-center gap-4 p-4 rounded-3xl bg-zinc-900 border border-zinc-800 active:scale-98 transition-transform cursor-pointer"><div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500">{h.order || '-'}</div><img src={h.image || h.items?.[0]?.image} className="w-10 h-14 rounded-lg object-cover bg-zinc-800" /><div className="flex-1 min-w-0"><p className="font-bold text-sm truncate text-white mb-1">{h.title || 'Sem título'}</p><span style={{color: accentColor, backgroundColor: `${accentColor}15`}} className="text-[9px] px-2 py-1 rounded-md uppercase font-bold tracking-wide">{h.displayMode === 'widget' ? `Widget (${h.cardSize})` : 'Story'}</span></div><Icon name="Edit3" size={18} className="text-zinc-600" /></div>))}</div></section><section><h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">Apps</h3><div className="space-y-3">{allApps.map(app => (<div key={app.id} onClick={() => { playSound('click'); onEditApp(app); }} className="flex items-center gap-4 p-4 rounded-3xl bg-zinc-900 border border-zinc-800 active:scale-98 transition-transform cursor-pointer"><img src={app.icon} className="w-12 h-12 rounded-2xl object-cover bg-zinc-800" /><div className="flex-1 min-w-0"><p className="font-bold text-sm truncate text-white mb-1">{app.name}</p><p className="text-[10px] text-zinc-500">{app.category}</p></div><Icon name="Edit3" size={18} className="text-zinc-600" /></div>))}</div></section></div></div>); }
-        
-        function ProfileModal({ isAdmin, setAdmin, onClose, profileImage, onImageUpload, theme, setTheme, accentColor, setAccentColor }) { 
-            const [showAdminLogin, setShowAdminLogin] = useState(false); 
-            const [userLogin, setUserLogin] = useState(''); 
-            const [passLogin, setPassLogin] = useState(''); 
-            const fileInputRef = useRef(null); 
-            const colors = THEMES[theme] || THEMES.amoled; 
-            const currentUsername = localStorage.getItem('nexus_username'); 
-            
-            const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => onImageUpload(reader.result); reader.readAsDataURL(file); } }; 
-            const handleLogin = () => { if (userLogin === 'DN' && passLogin === 'dnvy2205ZX@') { setAdmin(true); playSound('success'); onClose(); } else alert("Erro."); }; 
-
-            const requestPermission = async () => {
-                if (!messaging) return alert("Push Notificações não são suportadas neste ambiente/navegador.");
-                try {
-                    const permission = await Notification.requestPermission();
-                    if (permission === 'granted') {
-                        const token = await messaging.getToken();
-                        if (token) {
-                            console.log("FCM Token:", token);
-                            if (currentUsername) {
-                                await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(currentUsername).update({ fcmToken: token });
-                            }
-                            playSound('success');
-                            alert("Notificações Ativadas com Sucesso!");
-                        } else {
-                            alert("Não foi possível obter o token. Verifique se o app está em HTTPS.");
-                        }
-                    } else {
-                        alert("Permissão para notificações foi negada.");
-                    }
-                } catch (e) {
-                    console.error("Erro ao ativar notificações:", e);
-                    alert("Erro ao ativar. Consulte o console.");
-                }
-            };
-
-            return (
-                <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 view-animate">
-                    <div className={`${colors.card} w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative border ${colors.border} flex flex-col items-center text-center`}>
-                        <div onClick={() => fileInputRef.current?.click()} className={`w-24 h-24 rounded-full ${colors.input} border-4 ${colors.card} shadow-xl overflow-hidden relative group cursor-pointer mb-4`}>{profileImage ? <img src={profileImage} className="w-full h-full object-cover" /> : <Icon name="Camera" size={32} className={`text-zinc-500 m-auto mt-7`} />}</div>
-                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                        <h2 className={`text-2xl font-bold ${colors.text} mb-1`}>{isAdmin ? 'Admin' : (currentUsername || 'Membro')}</h2>
-                        <p onClick={() => !isAdmin && setShowAdminLogin(!showAdminLogin)} className={`text-xs font-bold uppercase tracking-widest ${colors.subtext} mb-8 cursor-pointer`}>{isAdmin ? 'Acesso Master' : 'Usuário'}</p>
-                        <div className={`p-2 ${colors.input} rounded-2xl mb-4 flex gap-1 w-full`}>{['amoled', 'matte', 'light'].map(t => (<button key={t} onClick={() => { playSound('click'); setTheme(t); }} className={`flex-1 py-3 text-[10px] font-bold uppercase rounded-xl transition-all ${theme === t ? (t==='light' ? 'bg-white text-black shadow' : 'bg-zinc-800 text-white shadow') : colors.subtext}`}>{t}</button>))}</div>
-                        <div className={`p-3 ${colors.input} rounded-2xl mb-4 flex justify-between gap-1 w-full`}>{Object.entries(ACCENT_COLORS).map(([key, val]) => (<button key={key} onClick={() => { playSound('click'); setAccentColor(val.hex); }} className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-90 flex items-center justify-center ${accentColor === val.hex ? 'border-white scale-110' : 'border-transparent'}`} style={{ backgroundColor: val.hex }}>{accentColor === val.hex && <Icon name="Check" size={14} className="text-white" />}</button>))}</div>
-                        
-                        <button onClick={requestPermission} className={`w-full py-3 mb-8 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 ${colors.input} ${colors.subtext} active:scale-95 transition-transform`}>
-                            <Icon name="Bell" size={16} /> Ativar Notificações
-                        </button>
-
-                        {showAdminLogin && !isAdmin && (<div className="w-full space-y-2 mb-4 animate-spring"><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} placeholder="User" value={userLogin} onChange={e => setUserLogin(e.target.value)}/><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} type="password" placeholder="Pass" value={passLogin} onChange={e => setPassLogin(e.target.value)}/><button onClick={handleLogin} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-xs">Login</button></div>)}
-                        <button onClick={() => { playSound('click'); onClose(); }} className={`absolute top-6 right-6 w-10 h-10 rounded-full ${colors.input} flex items-center justify-center`}><Icon name="X" size={20} /></button>
-                        <button onClick={() => { if(isAdmin) setAdmin(false); else { localStorage.removeItem('nexus_logged_in'); location.reload(); } }} className="w-full py-4 text-red-500 text-sm font-bold bg-red-500/10 rounded-2xl">Sair</button>
-                    </div>
-                </div>
-            ); 
-        }
+        function ProfileModal({ isAdmin, setAdmin, onClose, profileImage, onImageUpload, theme, setTheme, accentColor, setAccentColor }) { const [showAdminLogin, setShowAdminLogin] = useState(false); const [userLogin, setUserLogin] = useState(''); const [passLogin, setPassLogin] = useState(''); const fileInputRef = useRef(null); const colors = THEMES[theme] || THEMES.amoled; const currentUsername = localStorage.getItem('nexus_username'); const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => onImageUpload(reader.result); reader.readAsDataURL(file); } }; const handleLogin = () => { if (userLogin === 'DN' && passLogin === 'dnvy2205ZX@') { setAdmin(true); playSound('success'); onClose(); } else alert("Erro."); }; return (<div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-6 view-animate"><div className={`${colors.card} w-full max-w-sm rounded-[40px] p-8 shadow-2xl relative border ${colors.border} flex flex-col items-center text-center`}><div onClick={() => fileInputRef.current?.click()} className={`w-24 h-24 rounded-full ${colors.input} border-4 ${colors.card} shadow-xl overflow-hidden relative group cursor-pointer mb-4`}>{profileImage ? <img src={profileImage} className="w-full h-full object-cover" /> : <Icon name="Camera" size={32} className={`text-zinc-500 m-auto mt-7`} />}</div><input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} /><h2 className={`text-2xl font-bold ${colors.text} mb-1`}>{isAdmin ? 'Admin' : (currentUsername || 'Membro')}</h2><p onClick={() => !isAdmin && setShowAdminLogin(!showAdminLogin)} className={`text-xs font-bold uppercase tracking-widest ${colors.subtext} mb-8 cursor-pointer`}>{isAdmin ? 'Acesso Master' : 'Usuário'}</p><div className={`p-2 ${colors.input} rounded-2xl mb-4 flex gap-1 w-full`}>{['amoled', 'matte', 'light'].map(t => (<button key={t} onClick={() => { playSound('click'); setTheme(t); }} className={`flex-1 py-3 text-[10px] font-bold uppercase rounded-xl transition-all ${theme === t ? (t==='light' ? 'bg-white text-black shadow' : 'bg-zinc-800 text-white shadow') : colors.subtext}`}>{t}</button>))}</div><div className={`p-3 ${colors.input} rounded-2xl mb-8 flex justify-between gap-1 w-full`}>{Object.entries(ACCENT_COLORS).map(([key, val]) => (<button key={key} onClick={() => { playSound('click'); setAccentColor(val.hex); }} className={`w-8 h-8 rounded-full border-2 transition-transform active:scale-90 flex items-center justify-center ${accentColor === val.hex ? 'border-white scale-110' : 'border-transparent'}`} style={{ backgroundColor: val.hex }}>{accentColor === val.hex && <Icon name="Check" size={14} className="text-white" />}</button>))}</div>{showAdminLogin && !isAdmin && (<div className="w-full space-y-2 mb-4 animate-spring"><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} placeholder="User" value={userLogin} onChange={e => setUserLogin(e.target.value)}/><input className={`w-full ${colors.input} rounded-xl px-4 py-3 text-xs`} type="password" placeholder="Pass" value={passLogin} onChange={e => setPassLogin(e.target.value)}/><button onClick={handleLogin} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white text-xs">Login</button></div>)}<button onClick={() => { playSound('click'); onClose(); }} className={`absolute top-6 right-6 w-10 h-10 rounded-full ${colors.input} flex items-center justify-center`}><Icon name="X" size={20} /></button><button onClick={() => { if(isAdmin) setAdmin(false); else { localStorage.removeItem('nexus_logged_in'); location.reload(); } }} className="w-full py-4 text-red-500 text-sm font-bold bg-red-500/10 rounded-2xl">Sair</button></div></div>); }
 
         function App() {
             const [view, setView] = useState('loading');
@@ -1041,6 +1100,14 @@
             const [showProfile, setShowProfile] = useState(false);
             const [showScheduled, setShowScheduled] = useState(false);
             const [showRobot, setShowRobot] = useState(true);
+            
+            // Notification States
+            const [notifications, setNotifications] = useState([]);
+            const [showNotifModal, setShowNotifModal] = useState(false);
+            const [pushToast, setPushToast] = useState(null);
+            const [showSendPush, setShowSendPush] = useState(false);
+            const [lastReadTime, setLastReadTime] = useState(() => parseInt(localStorage.getItem('nexus_last_read_notif')) || Date.now());
+
             const colors = THEMES[theme] || THEMES.amoled;
 
             const setAdminState = (status) => { setIsAdmin(status); if (status) localStorage.setItem('nexus_admin_status', 'true'); else localStorage.removeItem('nexus_admin_status'); };
@@ -1055,19 +1122,33 @@
                     playSound('success');
                 } catch(e) { console.error("Erro Manutenção:", e); }
             };
+            
+            // Notification Logic
+            const unreadCount = notifications.filter(n => n.createdAt > lastReadTime).length;
 
-            // Lógica para receber mensagens enquanto o app está aberto (Foreground)
-            useEffect(() => {
-                if (messaging) {
-                    const unsub = messaging.onMessage((payload) => {
-                        console.log('Message received. ', payload);
-                        playSound('notify');
-                        // Exemplo simples de notificação no app (pode ser melhorado com um Toast)
-                        alert(`Nova Mensagem:\n${payload.notification.title}\n${payload.notification.body}`);
-                    });
-                    return () => unsub && unsub(); // Cleanup (se a função retornar algo)
+            const handleOpenNotifications = () => {
+                setShowNotifModal(true);
+                const now = Date.now();
+                setLastReadTime(now);
+                localStorage.setItem('nexus_last_read_notif', now);
+                // Request Permission on user interaction
+                if (Notification.permission === 'default') {
+                    Notification.requestPermission();
                 }
-            }, []);
+            };
+            
+            const clearNotifications = async () => {
+                if(!confirm("Limpar todas as notificações para todos? (Ação Admin)")) return;
+                // Since this is public data, anyone could delete technically with this code, but usually we restrict via rules.
+                // For this simulation, we will just clear local array visually or delete from DB if admin.
+                if(isAdmin) {
+                   const batch = db.batch();
+                   const snap = await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('notifications').get();
+                   snap.docs.forEach(doc => batch.delete(doc.ref));
+                   await batch.commit();
+                   playSound('success');
+                }
+            };
 
             useEffect(() => {
                 const unsubAuth = auth.onAuthStateChanged(u => { 
@@ -1089,7 +1170,36 @@
                 const u2 = ref.collection('public').doc('data').collection('highlights').onSnapshot(s => setHighlights(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
                 const u3 = ref.collection('public').doc('config').onSnapshot(d => { if (d.exists) { const data = d.data(); setIsMaintenance(data.maintenance || false); setNoticeConfig(data.notice || { active: false, title: '', message: '' }); }}, err => console.log(err));
                 const u4 = ref.collection('public').doc('data').collection('quickAccess').onSnapshot(s => setQuickAccess(s.docs.map(d => ({id: d.id, ...d.data()}))), err => console.log(err));
-                return () => { u1(); u2(); u3(); u4(); };
+                
+                // Notification Listener
+                const u5 = ref.collection('public').doc('data').collection('notifications')
+                    .orderBy('createdAt', 'desc')
+                    .limit(20)
+                    .onSnapshot(s => {
+                        const loaded = s.docs.map(d => ({id: d.id, ...d.data()}));
+                        setNotifications(loaded);
+                        
+                        // Check for new notifications to show Toast
+                        const latest = loaded[0];
+                        if (latest) {
+                            const isNew = latest.createdAt > (Date.now() - 10000); // Created in last 10 seconds
+                            const isNotRead = latest.createdAt > lastReadTime;
+                            
+                            // Only toast if it's genuinely new in this session context (prevents toast on refresh)
+                            // We use a session storage flag or just time diff for simulation
+                            if (isNew) {
+                                setPushToast(latest);
+                                playSound('ping');
+                                
+                                // Try Browser Notification
+                                if (document.hidden && Notification.permission === 'granted') {
+                                    new Notification(latest.title, { body: latest.body, icon: 'https://cdn-icons-png.flaticon.com/512/4712/4712109.png' });
+                                }
+                            }
+                        }
+                    }, err => console.log("Notif Error", err));
+
+                return () => { u1(); u2(); u3(); u4(); u5(); };
             }, [user]);
 
             const handleImageUpload = async (base64) => { setProfileImage(base64); const currentUsername = localStorage.getItem('nexus_username'); if(!isAdmin && currentUsername) { await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('accounts').collection('users').doc(currentUsername).update({ image: base64 }); } };
@@ -1104,8 +1214,10 @@
                     {showRobot && <NexusBot mode="greeting" message={`Olá, <span style="color: ${accentColor}">${localStorage.getItem('nexus_username') || 'Visitante'}</span>`} accentColor={accentColor} onComplete={() => setShowRobot(false)} />}
                     {noticeConfig.active && !showRobot && <div className="fixed inset-0 z-[8000] bg-black/80 flex items-center justify-center p-6"><div className="bg-zinc-900 p-6 rounded-3xl max-w-xs text-center border border-zinc-800"><h3 className="font-bold text-white text-lg mb-2">{noticeConfig.title}</h3><p className="text-zinc-400 text-sm mb-6 leading-relaxed">{noticeConfig.message}</p><button onClick={() => setNoticeConfig({...noticeConfig, active: false})} style={{backgroundColor: accentColor}} className="w-full py-3 rounded-xl font-bold text-white active:scale-95 transition-transform">Fechar</button></div></div>}
 
+                    {pushToast && <PushToast notification={pushToast} onClose={() => setPushToast(null)} accentColor={accentColor} />}
+
                     <div className="flex-1 overflow-y-auto no-scrollbar relative">
-                        {activeTab === 'today' && <TodayView key="today" apps={apps} highlights={highlights} quickAccess={quickAccess} onProfile={() => setShowProfile(true)} onSettings={() => setShowSettings(true)} onApp={setSelectedApp} onQuickAccess={handleQuickAccess} isAdmin={isAdmin} profileImage={profileImage} themeMode={theme} accentColor={accentColor} />}
+                        {activeTab === 'today' && <TodayView key="today" apps={apps} highlights={highlights} quickAccess={quickAccess} onProfile={() => setShowProfile(true)} onSettings={() => setShowSettings(true)} onApp={setSelectedApp} onQuickAccess={handleQuickAccess} isAdmin={isAdmin} profileImage={profileImage} themeMode={theme} accentColor={accentColor} onOpenNotifications={handleOpenNotifications} unreadCount={unreadCount} />}
                         {activeTab === 'search' && <SearchView key="search" apps={apps} onApp={setSelectedApp} onProfile={() => setShowProfile(true)} profileImage={profileImage} themeMode={theme} accentColor={accentColor} />}
                         {activeTab === 'games' && <CategorizedView title="Jogos" categoryFilter="Jogos" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
                         {activeTab === 'apps' && <CategorizedView title="Apps" categoryFilter="Apps" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
@@ -1121,6 +1233,9 @@
                     {selectedApp && <AppDetail app={selectedApp} onClose={() => setSelectedApp(null)} themeMode={theme} accentColor={accentColor} />}
                     {selectedCollection && <CollectionModal collection={selectedCollection} apps={apps} onClose={() => setSelectedCollection(null)} onApp={setSelectedApp} accentColor={accentColor} />}
                     
+                    {showNotifModal && <NotificationModal notifications={notifications} onClose={() => setShowNotifModal(false)} accentColor={accentColor} onClearAll={isAdmin ? clearNotifications : null} />}
+                    {showSendPush && <SendNotificationModal onClose={() => setShowSendPush(false)} accentColor={accentColor} />}
+
                     {showSettings && (
                         <SettingsModal 
                             onClose={() => setShowSettings(false)} 
@@ -1130,6 +1245,7 @@
                             onAddStory={() => { setShowSettings(false); setEditingHighlight(null); setShowHighlightModal(true); }}
                             onSchedule={() => { setShowSettings(false); setShowScheduled(true); }}
                             onQuickAccessManager={() => { setShowSettings(false); setShowQuickAccessManager(true); }}
+                            onSendPush={() => { setShowSettings(false); setShowSendPush(true); }}
                             maintenance={isMaintenance}
                             toggleMaintenance={toggleMaintenance}
                             noticeConfig={noticeConfig}
