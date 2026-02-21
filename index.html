@@ -12,7 +12,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Firebase SDK Compat -->
+    <!-- Firebase SDK Compat (Apenas Autenticação e Firestore) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -73,7 +73,7 @@
     <script type="text/babel">
         const { useState, useRef, useEffect } = React;
 
-        // --- FIREBASE CONFIG (Idêntico ao original) ---
+        // --- FIREBASE CONFIG DA LOJA ---
         const firebaseConfig = {
             apiKey: "AIzaSyDcWSyP6S7LDuGQ1ZjFqKAHCZ8mjwJhEKY",
             authDomain: "nexus-hub-159db.firebaseapp.com",
@@ -101,14 +101,14 @@
             return <span ref={containerRef} className="flex items-center justify-center pointer-events-none"></span>;
         }
 
-        function InputField({ label, value, onChange, type = "text", placeholder = "", isTextarea = false }) { 
+        function InputField({ label, value, onChange, type = "text", placeholder = "", isTextarea = false, isPassword = false }) { 
             return (
                 <div className="nexus-input-container group">
                     <label className="nexus-label group-focus-within:text-white">{label}</label>
                     {isTextarea ? (
                         <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="nexus-input textarea" style={{ caretColor: ACCENT_COLOR }} />
                     ) : (
-                        <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="nexus-input" style={{ caretColor: ACCENT_COLOR }} />
+                        <input type={isPassword ? "password" : type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="nexus-input" style={{ caretColor: ACCENT_COLOR }} />
                     )}
                 </div>
             ); 
@@ -123,40 +123,38 @@
         }
 
         function App() {
-            // Agora o Cloud Name voltou a ser uma variável de estado gerenciável pelo usuário
-            const [cloudName, setCloudName] = useState(() => localStorage.getItem('nexus_cloud_name') || 'dad93q3f0');
-            const [uploadPreset, setUploadPreset] = useState(() => localStorage.getItem('nexus_upload_preset') || '');
+            // GITHUB CONFIG
+            const [ghToken, setGhToken] = useState(() => localStorage.getItem('nexus_gh_token') || '');
+            const [ghOwner, setGhOwner] = useState(() => localStorage.getItem('nexus_gh_owner') || '');
+            const [ghRepo, setGhRepo] = useState(() => localStorage.getItem('nexus_gh_repo') || '');
             
-            // App Data Completo
+            // App Data
             const [appData, setAppData] = useState({ 
                 name: '', developer: '', category: 'Apps', version: '1.0', platform: 'Mobile', description: '',
                 icon: '', screenshots: [], scheduledAt: '', isMod: false, isSecret: false, isHidden: false, isLocked: false 
             });
             
             const [newShotUrl, setNewShotUrl] = useState("");
-            const [file, setFile] = useState(null); // APK File
+            const [file, setFile] = useState(null);
             const [uploading, setUploading] = useState(false);
             const [progress, setProgress] = useState(0);
             const [status, setStatus] = useState({ type: '', message: '' });
-            const [isConfigOpen, setIsConfigOpen] = useState(!uploadPreset || !cloudName);
+            const [isConfigOpen, setIsConfigOpen] = useState(!ghToken || !ghOwner || !ghRepo);
 
             useEffect(() => {
                 auth.signInAnonymously().catch(err => console.error("Firebase Auth Error:", err));
             }, []);
 
             const handleSaveConfig = () => {
-                if(!cloudName || !uploadPreset) {
-                    setStatus({ type: 'error', message: 'Preencha o Cloud Name e o Upload Preset!' });
-                    return;
-                }
-                localStorage.setItem('nexus_cloud_name', cloudName);
-                localStorage.setItem('nexus_upload_preset', uploadPreset);
-                setStatus({ type: 'success', message: 'Configurações do Cloudinary salvas!' });
+                if(!ghToken || !ghOwner || !ghRepo) return setStatus({ type: 'error', message: 'Preencha todos os campos do GitHub!' });
+                localStorage.setItem('nexus_gh_token', ghToken);
+                localStorage.setItem('nexus_gh_owner', ghOwner);
+                localStorage.setItem('nexus_gh_repo', ghRepo);
+                setStatus({ type: 'success', message: 'GitHub configurado com sucesso!' });
                 setIsConfigOpen(false);
                 setTimeout(() => setStatus({ type: '', message: '' }), 3000);
             };
 
-            // Image Upload (Base64) - Ícones e Screenshots
             const handleImageToDataURL = (file, callback) => {
                 const reader = new FileReader();
                 reader.onloadend = () => callback(reader.result);
@@ -175,96 +173,112 @@
                 }
             };
 
-            const addShotUrl = () => {
-                if(newShotUrl) { setAppData({...appData, screenshots: [...appData.screenshots, newShotUrl]}); setNewShotUrl(""); }
-            };
-
-            const removeShot = (idx) => {
-                const s = [...appData.screenshots];
-                s.splice(idx, 1);
-                setAppData({...appData, screenshots: s});
-            };
-
-            // APK Upload
-            const handleFileChange = (e) => {
-                if (e.target.files[0]) { setFile(e.target.files[0]); setStatus({ type: '', message: '' }); }
-            };
+            const addShotUrl = () => { if(newShotUrl) { setAppData({...appData, screenshots: [...appData.screenshots, newShotUrl]}); setNewShotUrl(""); } };
+            const removeShot = (idx) => { const s = [...appData.screenshots]; s.splice(idx, 1); setAppData({...appData, screenshots: s}); };
+            const handleFileChange = (e) => { if (e.target.files[0]) { setFile(e.target.files[0]); setStatus({ type: '', message: '' }); } };
 
             const publishToFirebase = async (downloadUrl) => {
                 try {
-                    setStatus({ type: 'info', message: 'Salvando no banco de dados da Loja...' });
-                    
+                    setStatus({ type: 'info', message: 'Gravando dados na Nexus Store...' });
                     const payload = {
-                        name: appData.name,
-                        developer: appData.developer || 'Nexus',
-                        version: appData.version || '1.0',
-                        platform: appData.platform || 'Mobile',
-                        icon: appData.icon || 'https://cdn-icons-png.flaticon.com/512/888/888859.png',
-                        category: appData.category,
-                        downloadUrl: downloadUrl,
-                        description: appData.description || 'Disponível na Nexus Store.',
-                        rating: '5.0',
-                        lastUpdated: Date.now(),
+                        name: appData.name, developer: appData.developer || 'Nexus', version: appData.version || '1.0',
+                        platform: appData.platform || 'Mobile', icon: appData.icon || 'https://cdn-icons-png.flaticon.com/512/888/888859.png',
+                        category: appData.category, downloadUrl: downloadUrl, // <-- Link do GitHub Releases
+                        description: appData.description || 'Disponível na Nexus Store.', rating: '5.0', lastUpdated: Date.now(),
                         screenshots: appData.screenshots.length > 0 ? appData.screenshots : [appData.icon || 'https://cdn-icons-png.flaticon.com/512/888/888859.png'], 
-                        isMod: appData.isMod,
-                        isLocked: appData.isLocked,
-                        isSecret: appData.isSecret,
-                        isHidden: appData.isHidden,
+                        isMod: appData.isMod, isLocked: appData.isLocked, isSecret: appData.isSecret, isHidden: appData.isHidden,
                         scheduledAt: appData.scheduledAt ? new Date(appData.scheduledAt).getTime() : null,
-                        isVisibleBeforeLaunch: false,
-                        hasWarning: false,
-                        warningMessage: ''
+                        isVisibleBeforeLaunch: false, hasWarning: false, warningMessage: ''
                     };
 
                     await db.collection('artifacts').doc(DB_APP_ID).collection('public').doc('data').collection('apps').add(payload);
-                    setStatus({ type: 'success', message: '✨ Publicado! O App já está disponível na Nexus.' });
+                    setStatus({ type: 'success', message: '✨ Sucesso! APK hospedado no GitHub e publicado na Loja.' });
                     
-                    // Reset
                     setFile(null);
                     setAppData({ name: '', developer: '', category: 'Apps', version: '1.0', platform: 'Mobile', description: '', icon: '', screenshots: [], scheduledAt: '', isMod: false, isSecret: false, isHidden: false, isLocked: false });
                 } catch (error) {
-                    setStatus({ type: 'error', message: 'Erro ao salvar no banco de dados: ' + error.message });
-                }
+                    setStatus({ type: 'error', message: 'Erro no Firebase: ' + error.message });
+                } finally { setUploading(false); }
             };
 
-            const handleUploadAndPublish = () => {
-                if (!cloudName || !uploadPreset) return setStatus({ type: 'error', message: "Abra as configurações e defina o Cloud Name e Upload Preset." });
+            // MAGIA DO GITHUB: CRIA UMA RELEASE E FAZ UPLOAD DO APK
+            const handleUploadAndPublish = async () => {
+                if (!ghToken || !ghOwner || !ghRepo) return setStatus({ type: 'error', message: "Configure o GitHub nas configurações." });
                 if (!appData.name) return setStatus({ type: 'error', message: "O App precisa de um nome." });
                 if (!file) return setStatus({ type: 'error', message: "Anexe o arquivo APK do App." });
 
                 setUploading(true);
                 setProgress(0);
-                setStatus({ type: 'info', message: 'Enviando APK para a nuvem...' });
+                
+                try {
+                    setStatus({ type: 'info', message: 'Passo 1: Criando Release no GitHub...' });
+                    
+                    // Formata a tag da release (ex: NomeDoApp-v1.0-Timestamp)
+                    const cleanName = appData.name.replace(/[^a-zA-Z0-9]/g, '');
+                    const cleanVer = appData.version.replace(/[^a-zA-Z0-9.]/g, '');
+                    const tagName = `${cleanName}-v${cleanVer}-${Date.now()}`;
+                    
+                    // Criar Release
+                    const releaseRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/releases`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `token ${ghToken}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            tag_name: tagName,
+                            name: `${appData.name} v${appData.version}`,
+                            body: `Auto-upload via Nexus Publisher.\nApp: ${appData.name}\nDev: ${appData.developer}`,
+                            draft: false, prerelease: false
+                        })
+                    });
 
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('upload_preset', uploadPreset);
+                    if (!releaseRes.ok) throw new Error("Falha ao criar release no GitHub. Verifique Token e Permissões.");
+                    
+                    const releaseData = await releaseRes.json();
+                    
+                    // O GitHub retorna um upload_url com {?name,label} no final, precisamos remover
+                    const rawUploadUrl = releaseData.upload_url;
+                    const cleanUploadUrl = rawUploadUrl.split('{')[0];
+                    const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const finalUploadUrl = `${cleanUploadUrl}?name=${safeFileName}`;
 
-                const url = `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`;
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', url, true);
+                    setStatus({ type: 'info', message: 'Passo 2: Enviando APK para o GitHub...' });
 
-                xhr.upload.onprogress = (e) => {
-                    if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
-                };
+                    // Upload do Arquivo via XHR para rastrear a porcentagem
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', finalUploadUrl, true);
+                    xhr.setRequestHeader('Authorization', `token ${ghToken}`);
+                    xhr.setRequestHeader('Content-Type', 'application/octet-stream'); // Raw Binary
+                    xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
 
-                xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        const response = JSON.parse(xhr.responseText);
-                        publishToFirebase(response.secure_url);
-                    } else {
-                        const err = JSON.parse(xhr.responseText);
-                        setStatus({ type: 'error', message: err.error?.message || "Erro no Cloudinary. Verifique o Upload Preset." });
+                    xhr.upload.onprogress = (e) => {
+                        if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+                    };
+
+                    xhr.onload = () => {
+                        if (xhr.status === 201) {
+                            const assetData = JSON.parse(xhr.responseText);
+                            publishToFirebase(assetData.browser_download_url); // Publica na loja com o link do Github!
+                        } else {
+                            const err = JSON.parse(xhr.responseText);
+                            setStatus({ type: 'error', message: err.message || "Erro durante o upload do arquivo para a Release." });
+                            setUploading(false);
+                        }
+                    };
+
+                    xhr.onerror = () => {
+                        setStatus({ type: 'error', message: "Erro de conexão com o GitHub." });
                         setUploading(false);
-                    }
-                };
-                
-                xhr.onerror = () => { 
-                    setStatus({ type: 'error', message: "Erro de conexão. Verifique se o Cloud Name está correto ou se há um bloqueador de anúncios ativo." }); 
-                    setUploading(false); 
-                };
-                
-                xhr.send(formData);
+                    };
+
+                    xhr.send(file);
+
+                } catch (error) {
+                    setStatus({ type: 'error', message: error.message });
+                    setUploading(false);
+                }
             };
 
             return (
@@ -274,7 +288,7 @@
                         <header className="flex justify-between items-center mb-10">
                             <div className="flex items-center gap-4 animate-float">
                                 <div className="w-14 h-14 bg-[#1c1c1e] rounded-[22px] border border-white/5 flex items-center justify-center shadow-2xl">
-                                    <Icon name="UploadCloud" className="text-blue-500" size={28} />
+                                    <Icon name="Github" className="text-white" size={28} />
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Nexus Publisher</p>
@@ -286,14 +300,22 @@
                             </button>
                         </header>
 
-                        {/* CONFIG CLOUDINARY */}
+                        {/* CONFIG GITHUB */}
                         {isConfigOpen && (
                             <div className="mb-8 p-6 onyx-card rounded-[32px] animate-spring">
-                                <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><Icon name="Cloud" size={18} className="text-blue-500"/> Integração Cloudinary</h3>
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="text-sm font-bold text-white flex items-center gap-2"><Icon name="Github" size={18}/> Integração GitHub</h3>
+                                </div>
                                 <div className="space-y-4">
-                                    <InputField label="Cloud Name *" placeholder="Ex: dad93q3f0" value={cloudName} onChange={setCloudName} />
-                                    <InputField label="Upload Preset (Unsigned) *" placeholder="Ex: nexus_uploads" value={uploadPreset} onChange={setUploadPreset} />
-                                    <button onClick={handleSaveConfig} className="w-full py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold text-sm btn-fluid">Salvar Configuração</button>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <InputField label="Nome do Usuário (Owner)" placeholder="ex: seunome" value={ghOwner} onChange={setGhOwner} />
+                                        <InputField label="Nome do Repositório" placeholder="ex: nexus-apps" value={ghRepo} onChange={setGhRepo} />
+                                    </div>
+                                    <InputField label="Personal Access Token (Classic)" placeholder="ghp_xxxxxxxxxxxx" value={ghToken} onChange={setGhToken} isPassword={true} />
+                                    <p className="text-[10px] text-zinc-500 font-bold px-2 -mt-2 mb-4 leading-relaxed">
+                                        Crie um Token no GitHub (Settings &gt; Developer Settings &gt; Personal access tokens &gt; Tokens (classic)). Marque a permissão <b>"repo"</b> para funcionar.
+                                    </p>
+                                    <button onClick={handleSaveConfig} className="w-full py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold text-sm btn-fluid">Salvar Integração</button>
                                 </div>
                             </div>
                         )}
@@ -336,7 +358,6 @@
                                 <h2 className="text-lg font-bold text-white tracking-tight">Visual e Mídia</h2>
                             </div>
                             <div className="onyx-card p-6 rounded-[32px] mb-8">
-                                {/* Ícone */}
                                 <div className="mb-8 border-b border-zinc-800 pb-8">
                                     <label className="nexus-label mb-4">Ícone do App</label>
                                     <div className="flex gap-4 items-center">
@@ -346,14 +367,12 @@
                                         <div className="flex-1 space-y-2">
                                             <input type="text" placeholder="URL da Imagem" className="w-full bg-[#1c1c1e] rounded-xl px-4 py-3 text-sm text-white outline-none border border-transparent focus:border-blue-500" value={appData.icon} onChange={e => setAppData({...appData, icon: e.target.value})} />
                                             <label className="w-full bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl px-4 py-3 text-xs font-bold text-center block cursor-pointer transition-colors">
-                                                Ou Fazer Upload do PC/Celular
+                                                Ou Fazer Upload Local
                                                 <input type="file" accept="image/*" className="hidden" onChange={handleIconUpload} />
                                             </label>
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* Screenshots */}
                                 <div>
                                     <label className="nexus-label mb-4">Screenshots</label>
                                     <div className="flex gap-2 mb-4">
@@ -371,9 +390,6 @@
                                                 <button onClick={() => removeShot(i)} className="absolute top-2 right-2 w-6 h-6 bg-red-600/80 backdrop-blur-md rounded-full flex items-center justify-center text-white"><Icon name="X" size={12} /></button>
                                             </div>
                                         ))}
-                                        {appData.screenshots.length === 0 && (
-                                            <div className="w-full py-8 text-center border-2 border-dashed border-zinc-800 rounded-[20px] text-zinc-500 text-xs font-bold">Nenhuma screenshot adicionada</div>
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -387,20 +403,13 @@
                             </div>
                             <div className="onyx-card p-6 rounded-[32px] mb-8 space-y-4">
                                 <InputField label="Agendar Lançamento (Deixe em branco p/ lançar já)" type="datetime-local" value={appData.scheduledAt} onChange={v => setAppData({...appData, scheduledAt: v})} />
-                                
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                                     <div className="flex justify-between items-center bg-[#1c1c1e] p-4 rounded-[20px] border border-white/5">
-                                        <div>
-                                            <span className="text-[12px] font-bold text-white block">Confidencial/Surpresa</span>
-                                            <span className="text-[9px] text-zinc-500 font-bold uppercase mt-1 block">Aparece com ícone "?"</span>
-                                        </div>
+                                        <div><span className="text-[12px] font-bold text-white block">Confidencial/Surpresa</span><span className="text-[9px] text-zinc-500 font-bold uppercase mt-1 block">Aparece com ícone "?"</span></div>
                                         <IOSSwitch checked={appData.isSecret || appData.isLocked} onChange={v => setAppData({...appData, isSecret: v, isLocked: v})} />
                                     </div>
                                     <div className="flex justify-between items-center bg-[#1c1c1e] p-4 rounded-[20px] border border-white/5">
-                                        <div>
-                                            <span className="text-[12px] font-bold text-white block">Modo Oculto</span>
-                                            <span className="text-[9px] text-zinc-500 font-bold uppercase mt-1 block">Invisível até o lançamento</span>
-                                        </div>
+                                        <div><span className="text-[12px] font-bold text-white block">Modo Oculto</span><span className="text-[9px] text-zinc-500 font-bold uppercase mt-1 block">Invisível até o lançamento</span></div>
                                         <IOSSwitch checked={appData.isHidden} onChange={v => setAppData({...appData, isHidden: v})} />
                                     </div>
                                 </div>
@@ -417,29 +426,27 @@
                             <label className={`relative flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-[32px] cursor-pointer transition-all duration-300 mb-6 onyx-card btn-fluid ${file ? 'border-blue-500 bg-blue-500/5' : 'border-zinc-800 hover:border-zinc-600'}`}>
                                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${file ? 'bg-blue-600' : 'bg-zinc-800'}`}>
-                                        <Icon name={file ? "Check" : "FilePlus"} className="text-white" size={20} />
+                                        <Icon name={file ? "Check" : "Github"} className="text-white" size={20} />
                                     </div>
-                                    <p className="text-sm font-bold text-white mb-1">{file ? 'Arquivo APK Anexado' : 'Tocar para escolher arquivo APK'}</p>
+                                    <p className="text-sm font-bold text-white mb-1">{file ? 'Arquivo APK Selecionado' : 'Tocar para escolher arquivo APK'}</p>
                                     <p className="text-xs font-bold text-zinc-500 truncate max-w-[280px]">
-                                        {file ? file.name : 'Subirá direto para o seu Cloudinary'}
+                                        {file ? file.name : 'Será hospedado permanentemente no GitHub'}
                                     </p>
                                 </div>
                                 <input type="file" accept=".apk" className="hidden" onChange={handleFileChange} />
                             </label>
 
-                            {/* Status Messages */}
                             {status.message && (
                                 <div className={`p-5 mb-6 rounded-[24px] text-sm font-bold border flex items-center gap-3 animate-spring ${status.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : status.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>
-                                    <Icon name={status.type === 'error' ? 'AlertTriangle' : status.type === 'success' ? 'CheckCircle2' : 'Info'} size={20} />
+                                    <Icon name={status.type === 'error' ? 'AlertTriangle' : status.type === 'success' ? 'CheckCircle2' : 'Github'} size={20} />
                                     {status.message}
                                 </div>
                             )}
 
-                            {/* Botão Final */}
                             {uploading ? (
                                 <div className="onyx-card p-6 rounded-[32px]">
                                     <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-3">
-                                        <span>{progress === 100 ? 'Finalizando...' : 'Enviando APK para a Nuvem'}</span>
+                                        <span>{progress === 100 ? 'Configurando Link Final...' : 'Fazendo upload no GitHub (Release)'}</span>
                                         <span className="text-blue-500">{progress}%</span>
                                     </div>
                                     <div className="w-full bg-[#1c1c1e] rounded-full h-4 overflow-hidden shadow-inner">
@@ -451,11 +458,11 @@
                             ) : (
                                 <button 
                                     onClick={handleUploadAndPublish} 
-                                    disabled={!file || !appData.name || !uploadPreset || !cloudName}
-                                    className={`w-full py-5 rounded-full font-black text-sm uppercase tracking-wider shadow-[0_10px_30px_rgba(37,99,235,0.3)] flex items-center justify-center gap-2 btn-fluid ${file && appData.name && uploadPreset && cloudName ? 'bg-blue-600 text-white' : 'bg-zinc-900 text-zinc-600 shadow-none border border-zinc-800 cursor-not-allowed'}`}
+                                    disabled={!file || !appData.name || !ghToken}
+                                    className={`w-full py-5 rounded-full font-black text-sm uppercase tracking-wider shadow-[0_10px_30px_rgba(37,99,235,0.3)] flex items-center justify-center gap-2 btn-fluid ${file && appData.name && ghToken ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-600 shadow-none border border-zinc-800 cursor-not-allowed'}`}
                                 >
-                                    <Icon name="UploadCloud" size={20} /> 
-                                    Subir Arquivo & Publicar
+                                    <Icon name="Upload" size={20} /> 
+                                    Hospedar no GitHub & Publicar
                                 </button>
                             )}
                         </div>
