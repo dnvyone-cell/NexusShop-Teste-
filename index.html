@@ -2,56 +2,237 @@
 <html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Admin Panel</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus Admin - Master</title>
     
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-</head>
-<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center p-6">
-
-    <div class="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl w-full max-w-lg shadow-2xl">
-        <h1 class="text-3xl font-black mb-6 text-blue-500 tracking-tight">Nexus Uploader</h1>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap');
         
-        <form id="uploadForm" class="space-y-4">
-            <div>
-                <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Nome do App</label>
-                <input type="text" id="appName" class="w-full bg-black border border-zinc-800 rounded-xl p-3 text-sm outline-none focus:border-blue-500 transition-colors" required>
-            </div>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; 
+            background-color: #000000; 
+            color: white;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-            <div>
-                <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Desenvolvedor</label>
-                <input type="text" id="appDev" class="w-full bg-black border border-zinc-800 rounded-xl p-3 text-sm outline-none focus:border-blue-500 transition-colors" required>
-            </div>
+        .input-onyx {
+            background-color: #121212;
+            border: 1px solid #1f1f23;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .input-onyx:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+            outline: none;
+        }
 
-            <div>
-                <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">URL do Ícone</label>
-                <input type="url" id="appIcon" class="w-full bg-black border border-zinc-800 rounded-xl p-3 text-sm outline-none focus:border-blue-500 transition-colors" required>
-            </div>
+        .card-onyx {
+            background-color: #0c0c0e;
+            border: 1px solid #1f1f23;
+            border-radius: 24px;
+        }
 
-            <div>
-                <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">URL de Download</label>
-                <input type="url" id="appDownload" class="w-full bg-black border border-zinc-800 rounded-xl p-3 text-sm outline-none focus:border-blue-500 transition-colors" required>
-            </div>
+        /* Toggles estilo iOS */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #27272a; transition: .4s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 20px; width: 20px;
+            left: 4px; bottom: 4px; background-color: white; transition: cubic-bezier(0.34, 1.56, 0.64, 1) .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #2563eb; }
+        input:checked + .slider:before { transform: translateX(22px); }
 
-            <div>
-                <label class="block text-xs font-bold text-zinc-500 uppercase mb-1">Categoria</label>
-                <select id="appCategory" class="w-full bg-black border border-zinc-800 rounded-xl p-3 text-sm outline-none focus:border-blue-500 text-white">
-                    <option value="Apps">Apps</option>
-                    <option value="Jogos">Jogos</option>
-                    <option value="Utilitários">Utilitários</option>
-                </select>
-            </div>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .btn-press:active { transform: scale(0.96); }
+    </style>
+</head>
+<body class="pb-20">
 
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 mt-4">
-                Publicar na Loja
+    <header class="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-zinc-900 px-6 py-4 flex justify-between items-center">
+        <div>
+            <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-0.5">Painel de Controle</p>
+            <h1 class="text-2xl font-black tracking-tighter">Nexus Admin</h1>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-500">
+            <i data-lucide="zap"></i>
+        </div>
+    </header>
+
+    <main class="max-w-2xl mx-auto p-6 space-y-8 mt-4">
+        <form id="uploadForm" class="space-y-8">
+
+            <section class="card-onyx p-6 space-y-5 shadow-lg">
+                <div class="flex items-center gap-2 mb-4">
+                    <i data-lucide="info" class="text-zinc-500" width="20"></i>
+                    <h2 class="text-lg font-bold">Informações Principais</h2>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-2 ml-2">Nome do App</label>
+                    <input type="text" id="appName" class="w-full input-onyx rounded-2xl p-4 text-sm font-medium" required>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-2 ml-2">Desenvolvedor</label>
+                        <input type="text" id="appDev" class="w-full input-onyx rounded-2xl p-4 text-sm font-medium" required>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-2 ml-2">Versão</label>
+                        <input type="text" id="appVersion" class="w-full input-onyx rounded-2xl p-4 text-sm font-medium" placeholder="Ex: 1.0.4" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-2 ml-2">Categoria</label>
+                        <select id="appCategory" class="w-full input-onyx rounded-2xl p-4 text-sm font-medium">
+                            <option value="Apps">Apps</option>
+                            <option value="Jogos">Jogos</option>
+                            <option value="PC">PC</option>
+                            <option value="Streaming">Streaming</option>
+                            <option value="Utilitários">Utilitários</option>
+                            <option value="Rede Sociais">Rede Sociais</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-2 ml-2">Plataforma</label>
+                        <select id="appPlatform" class="w-full input-onyx rounded-2xl p-4 text-sm font-medium">
+                            <option value="Mobile">Mobile</option>
+                            <option value="PC">PC</option>
+                            <option value="Web">Web</option>
+                            <option value="Console">Console</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-2 ml-2">Descrição Completa</label>
+                    <textarea id="appDesc" rows="4" class="w-full input-onyx rounded-2xl p-4 text-sm font-medium resize-none" required></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-2 ml-2">URL de Download (APK/Link)</label>
+                    <input type="url" id="appDownload" class="w-full input-onyx rounded-2xl p-4 text-sm font-medium">
+                </div>
+            </section>
+
+            <section class="card-onyx p-6 space-y-5 shadow-lg">
+                <div class="flex items-center gap-2 mb-4">
+                    <i data-lucide="image" class="text-zinc-500" width="20"></i>
+                    <h2 class="text-lg font-bold">Mídia Visual</h2>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-[#121212] border border-zinc-800">
+                    <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-3">Ícone do App</label>
+                    <div class="flex gap-4 items-center">
+                        <img id="iconPreview" src="https://via.placeholder.com/150/1c1c1e/3f3f46?text=Icon" class="w-16 h-16 rounded-2xl object-cover bg-zinc-900 border border-zinc-800 shrink-0">
+                        <div class="flex-1 space-y-2">
+                            <input type="text" id="appIconUrl" placeholder="Colar URL da imagem..." class="w-full input-onyx rounded-xl p-3 text-xs font-medium">
+                            <div class="relative w-full">
+                                <input type="file" id="appIconFile" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                                <div class="w-full bg-zinc-900 border border-zinc-700 border-dashed rounded-xl p-3 text-xs font-bold text-center text-zinc-400 hover:bg-zinc-800 transition-colors">
+                                    Ou faça Upload do Arquivo
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-[#121212] border border-zinc-800">
+                    <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-3">Screenshots</label>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="shotUrlInput" placeholder="URL da Screenshot..." class="flex-1 input-onyx rounded-xl p-3 text-xs font-medium">
+                        <div class="relative w-12">
+                            <input type="file" id="shotFileInput" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                            <div class="w-full h-full bg-zinc-900 border border-zinc-700 rounded-xl flex items-center justify-center text-zinc-400 hover:bg-zinc-800 transition-colors">
+                                <i data-lucide="folder-up" width="16"></i>
+                            </div>
+                        </div>
+                        <button type="button" onclick="addScreenshotFromUrl()" class="w-12 bg-blue-600 rounded-xl flex items-center justify-center btn-press text-white">
+                            <i data-lucide="plus" width="18"></i>
+                        </button>
+                    </div>
+                    <div id="screenshotsContainer" class="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                        </div>
+                </div>
+            </section>
+
+            <section class="card-onyx p-6 space-y-5 shadow-lg">
+                <div class="flex items-center gap-2 mb-4">
+                    <i data-lucide="calendar-clock" class="text-zinc-500" width="20"></i>
+                    <h2 class="text-lg font-bold">Lançamento e Visibilidade</h2>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-2 ml-2">Agendar Lançamento (Deixe vazio para lançar agora)</label>
+                    <input type="datetime-local" id="appSchedule" class="w-full input-onyx rounded-2xl p-4 text-sm font-medium block">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div class="flex justify-between items-center p-4 bg-[#121212] border border-zinc-800 rounded-2xl">
+                        <div>
+                            <p class="text-sm font-bold text-white">Modo Oculto</p>
+                            <p class="text-[9px] text-zinc-500 uppercase font-bold mt-0.5">Some da loja antes da data</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="appHidden">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="flex justify-between items-center p-4 bg-[#121212] border border-zinc-800 rounded-2xl">
+                        <div>
+                            <p class="text-sm font-bold text-white">Modo Surpresa</p>
+                            <p class="text-[9px] text-zinc-500 uppercase font-bold mt-0.5">Ícone "???" antes da data</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="appSecret">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex justify-between items-center p-4 bg-[#121212] border border-zinc-800 rounded-2xl md:col-span-2">
+                        <div>
+                            <p class="text-sm font-bold text-white">É um MOD?</p>
+                            <p class="text-[9px] text-zinc-500 uppercase font-bold mt-0.5">Adiciona a tag de modificado</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="appIsMod">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <button type="submit" id="submitBtn" class="w-full bg-blue-600 py-5 rounded-2xl font-black text-white uppercase tracking-wider shadow-[0_10px_30px_rgba(37,99,235,0.3)] btn-press transition-all flex justify-center items-center gap-2">
+                <i data-lucide="rocket" width="20"></i> Publicar na Nexus
             </button>
         </form>
-    </div>
+    </main>
 
     <script>
-        // Mesma configuração da sua loja principal
+        // Inicializa os ícones
+        lucide.createIcons();
+
+        // Configuração Firebase (Use a mesma da sua loja!)
         const firebaseConfig = {
             apiKey: "AIzaSyDcWSyP6S7LDuGQ1ZjFqKAHCZ8mjwJhEKY",
             authDomain: "nexus-hub-159db.firebaseapp.com",
@@ -61,36 +242,124 @@
             appId: "1:400199878551:web:4f58353584daffbeb026d2"
         };
 
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const DB_APP_ID = 'nexus-hub-permanent-vault';
 
+        // --- LÓGICA DE MÍDIA (Base64 + URLs) ---
+        let currentIconData = "";
+        let screenshotsArray = [];
+
+        // Converte Arquivo para Base64
+        const fileToBase64 = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
+        // Ícone - Via URL
+        document.getElementById('appIconUrl').addEventListener('input', (e) => {
+            const val = e.target.value;
+            if(val) {
+                currentIconData = val;
+                document.getElementById('iconPreview').src = val;
+                document.getElementById('appIconFile').value = ''; // Limpa file
+            }
+        });
+
+        // Ícone - Via Arquivo
+        document.getElementById('appIconFile').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                const base64 = await fileToBase64(file);
+                currentIconData = base64;
+                document.getElementById('iconPreview').src = base64;
+                document.getElementById('appIconUrl').value = ''; // Limpa URL
+            }
+        });
+
+        // Renderiza Screenshots
+        const renderScreenshots = () => {
+            const container = document.getElementById('screenshotsContainer');
+            container.innerHTML = '';
+            screenshotsArray.forEach((shot, index) => {
+                const div = document.createElement('div');
+                div.className = "relative shrink-0 w-20 h-32 rounded-xl border border-zinc-700 overflow-hidden group";
+                div.innerHTML = `
+                    <img src="${shot}" class="w-full h-full object-cover">
+                    <button type="button" onclick="removeScreenshot(${index})" class="absolute top-1 right-1 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i data-lucide="x" class="text-white" style="width: 12px; height: 12px;"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+        };
+
+        // Adicionar Screenshot (URL)
+        window.addScreenshotFromUrl = () => {
+            const urlInput = document.getElementById('shotUrlInput');
+            if(urlInput.value) {
+                screenshotsArray.push(urlInput.value);
+                urlInput.value = '';
+                renderScreenshots();
+            }
+        };
+
+        // Adicionar Screenshot (Arquivo)
+        document.getElementById('shotFileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                const base64 = await fileToBase64(file);
+                screenshotsArray.push(base64);
+                e.target.value = '';
+                renderScreenshots();
+            }
+        });
+
+        // Remover Screenshot
+        window.removeScreenshot = (index) => {
+            screenshotsArray.splice(index, 1);
+            renderScreenshots();
+        };
+
+        // --- ENVIO DO FORMULÁRIO ---
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.innerText = "Publicando...";
+            
+            if(!currentIconData) return alert("Por favor, adicione um ícone (URL ou Arquivo).");
+
+            const btn = document.getElementById('submitBtn');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = `<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Processando...`;
             btn.disabled = true;
 
-            // Monta o objeto no mesmo formato que a sua loja espera
+            // Tratamento da data de agendamento
+            const scheduleInput = document.getElementById('appSchedule').value;
+            const scheduledTimestamp = scheduleInput ? new Date(scheduleInput).getTime() : null;
+
+            // Objeto pronto para a Nexus Store
             const newApp = {
                 name: document.getElementById('appName').value,
                 developer: document.getElementById('appDev').value,
-                icon: document.getElementById('appIcon').value,
-                downloadUrl: document.getElementById('appDownload').value,
+                version: document.getElementById('appVersion').value,
                 category: document.getElementById('appCategory').value,
-                platform: 'Mobile',
-                version: '1.0',
-                rating: '5.0',
-                isMod: false,
-                description: 'App adicionado via Painel Admin.',
-                screenshots: [],
-                lastUpdated: Date.now()
+                platform: document.getElementById('appPlatform').value,
+                description: document.getElementById('appDesc').value,
+                downloadUrl: document.getElementById('appDownload').value,
+                icon: currentIconData,
+                screenshots: screenshotsArray,
+                scheduledAt: scheduledTimestamp,
+                isHidden: document.getElementById('appHidden').checked,
+                isSecret: document.getElementById('appSecret').checked,
+                isMod: document.getElementById('appIsMod').checked,
+                lastUpdated: Date.now(),
+                rating: '5.0', // Padrão inicial
+                isVisibleBeforeLaunch: true // Mantém compatibilidade com a loja
             };
 
             try {
-                // Salva diretamente na coleção de apps da Nexus Store
                 await db.collection('artifacts')
                         .doc(DB_APP_ID)
                         .collection('public')
@@ -98,14 +367,22 @@
                         .collection('apps')
                         .add(newApp);
                 
-                alert("App publicado com sucesso!");
-                e.target.reset(); // Limpa o formulário
+                alert("Sucesso! App enviado para a Nexus Store.");
+                
+                // Reset form visualmente
+                e.target.reset();
+                currentIconData = "";
+                document.getElementById('iconPreview').src = "https://via.placeholder.com/150/1c1c1e/3f3f46?text=Icon";
+                screenshotsArray = [];
+                renderScreenshots();
+
             } catch (error) {
                 console.error("Erro ao publicar:", error);
                 alert("Erro ao publicar: " + error.message);
             } finally {
-                btn.innerText = "Publicar na Loja";
+                btn.innerHTML = originalContent;
                 btn.disabled = false;
+                lucide.createIcons();
             }
         });
     </script>
