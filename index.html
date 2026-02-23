@@ -5,18 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Nexus App Store</title>
     
+    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Nexus">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4712/4712109.png">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/4712/4712109.png">
 
+    <!-- Dependências Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- Firebase SDK Compat -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -134,7 +137,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        const APP_VERSION = "6.5.0 - Add Hidden View & Sites Category"; 
+        const APP_VERSION = "6.5.1 - Fix Hidden & Secret Modes Logic"; 
 
         const firebaseConfig = {
             apiKey: "AIzaSyDcWSyP6S7LDuGQ1ZjFqKAHCZ8mjwJhEKY",
@@ -216,9 +219,9 @@
         function AppListItem({ app, onClick, isAdmin, lockedAppId, now, themeMode, accentColor }) { 
             const colors = THEMES[themeMode] || THEMES.amoled; 
             
-            const isFuture = app.scheduledAt && now < app.scheduledAt;
-            const isPreOrder = isFuture; 
-            const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
+            const isEffectivelySecret = !isAdmin && app.isSecret && (!app.scheduledAt || now < app.scheduledAt);
+            const isPreOrder = (app.scheduledAt && now < app.scheduledAt) || isEffectivelySecret; 
+            const isEffectiveLocked = isEffectivelySecret;
             const isShake = lockedAppId === app.id; 
             
             const handleQuickDownload = (e) => { e.stopPropagation(); if (isPreOrder) return; playSound('click'); openSystemLink(app.downloadUrl); }; 
@@ -262,11 +265,11 @@
             ); 
         }
 
-        function SearchAppCard({ app, onClick, now, themeMode, accentColor }) { 
+        function SearchAppCard({ app, onClick, now, themeMode, accentColor, isAdmin }) { 
             const colors = THEMES[themeMode] || THEMES.amoled; 
-            const isFuture = app.scheduledAt && now < app.scheduledAt;
-            const isPreOrder = isFuture; 
-            const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
+            const isEffectivelySecret = !isAdmin && app.isSecret && (!app.scheduledAt || now < app.scheduledAt);
+            const isPreOrder = (app.scheduledAt && now < app.scheduledAt) || isEffectivelySecret; 
+            const isEffectiveLocked = isEffectivelySecret;
             
             const handleDownload = (e) => { e.stopPropagation(); if(isPreOrder) return; playSound('click'); openSystemLink(app.downloadUrl); }; 
             const buttonText = isPreOrder ? 'AGUARDE' : (app.category === 'Sites' ? 'ACESSAR' : 'OBTER');
@@ -318,26 +321,28 @@
 
         function QuickAccessCard({ icon, label, title, onClick }) { return (<div onClick={onClick} className="onyx-card w-40 h-40 rounded-[32px] p-5 flex flex-col justify-between shrink-0 snap-start active:scale-95 transition-transform cursor-pointer relative overflow-hidden group"><div className="w-10 h-10 rounded-full border border-zinc-800 bg-black flex items-center justify-center text-zinc-300 group-hover:text-white transition-colors z-10"><Icon name={icon || 'Zap'} size={18} /></div><div className="z-10"><p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{label}</p><h3 className="text-xl font-bold text-white leading-tight">{title}</h3></div></div>); }
         
-        function CollectionModal({ collection, apps, onClose, onApp, accentColor }) { 
+        function CollectionModal({ collection, apps, onClose, onApp, accentColor, isAdmin }) { 
             const now = Date.now(); 
             const filteredApps = apps.filter(a => { 
+                const isEffectivelyHidden = a.isHidden && (!a.scheduledAt || now < a.scheduledAt);
                 const isFuture = a.scheduledAt && now < a.scheduledAt;
                 if (collection.actionType === 'filter') { 
                     const hasLaunched = !isFuture;
                     const releasedOrVisible = hasLaunched || a.isVisibleBeforeLaunch;
-                    return a.category === collection.actionValue && releasedOrVisible && hasLaunched; 
+                    return a.category === collection.actionValue && releasedOrVisible && hasLaunched && !isEffectivelyHidden; 
                 } 
                 return false; 
             }); 
-            return (<div className="fixed inset-0 z-[150] bg-black view-animate flex flex-col"><header className="px-6 pt-14 pb-4 flex justify-between items-center bg-black/90 backdrop-blur-xl sticky top-0 z-20"><div><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{collection.label}</p><h1 className="text-3xl font-extrabold tracking-tight text-white">{collection.title}</h1></div><button onClick={onClose} style={{color: accentColor}} className="w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center font-bold"><Icon name="X" size={20} /></button></header><div className="p-6 space-y-2 overflow-y-auto pb-40">{filteredApps.length === 0 ? (<div className="text-center text-zinc-500 mt-10">Nenhum app encontrado nesta coleção.</div>) : (filteredApps.map(app => (<AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode="amoled" accentColor={accentColor} />)))}</div></div>); 
+            return (<div className="fixed inset-0 z-[150] bg-black view-animate flex flex-col"><header className="px-6 pt-14 pb-4 flex justify-between items-center bg-black/90 backdrop-blur-xl sticky top-0 z-20"><div><p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{collection.label}</p><h1 className="text-3xl font-extrabold tracking-tight text-white">{collection.title}</h1></div><button onClick={onClose} style={{color: accentColor}} className="w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center font-bold"><Icon name="X" size={20} /></button></header><div className="p-6 space-y-2 overflow-y-auto pb-40">{filteredApps.length === 0 ? (<div className="text-center text-zinc-500 mt-10">Nenhum app encontrado nesta coleção.</div>) : (filteredApps.map(app => (<AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode="amoled" accentColor={accentColor} isAdmin={isAdmin} />)))}</div></div>); 
         }
 
-        function AppDetail({ app, onClose, themeMode, accentColor }) {
+        function AppDetail({ app, onClose, themeMode, accentColor, isAdmin }) {
             const now = Date.now();
             const colors = THEMES[themeMode] || THEMES.amoled;
-            const isFuture = app.scheduledAt && now < app.scheduledAt;
-            const isPreOrder = isFuture;
-            const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture;
+            
+            const isEffectivelySecret = !isAdmin && app.isSecret && (!app.scheduledAt || now < app.scheduledAt);
+            const isPreOrder = (app.scheduledAt && now < app.scheduledAt) || isEffectivelySecret;
+            const isEffectiveLocked = isEffectivelySecret;
             
             const [showWarning, setShowWarning] = useState(!!app.hasWarning);
             const [reviews, setReviews] = useState([]);
@@ -514,19 +519,27 @@
             const now = Date.now(); 
             const colors = THEMES[themeMode] || THEMES.amoled;
             const [lockedAppId, setLockedAppId] = useState(null); 
-            const activeHighlights = highlights.filter(h => { if(h.isHidden) return false; const isLive = !h.scheduledAt || now >= h.scheduledAt; return isLive; }).sort((a,b) => (a.order || 99) - (b.order || 99)); 
+            
+            const activeHighlights = highlights.filter(h => { 
+                const isEffectivelyHidden = h.isHidden && (!h.scheduledAt || now < h.scheduledAt);
+                if(isEffectivelyHidden) return false; 
+                const isLive = !h.scheduledAt || now >= h.scheduledAt; 
+                return isLive; 
+            }).sort((a,b) => (a.order || 99) - (b.order || 99)); 
             
             const stories = activeHighlights.filter(h => !h.displayMode || h.displayMode === 'story'); 
             const widgets = activeHighlights.filter(h => h.displayMode === 'widget'); 
             
             const comingSoonApps = apps.filter(a => {
                 const isFuture = a.scheduledAt && now < a.scheduledAt;
-                return isFuture; 
+                const isEffectivelyHidden = a.isHidden && (!a.scheduledAt || now < a.scheduledAt);
+                return isFuture && !isEffectivelyHidden; 
             }).sort((a,b) => a.scheduledAt - b.scheduledAt).slice(0, 3); 
 
             const releasedApps = apps.filter(a => {
                 const hasLaunched = !a.scheduledAt || now >= a.scheduledAt;
-                return hasLaunched;
+                const isEffectivelyHidden = a.isHidden && (!a.scheduledAt || now < a.scheduledAt);
+                return hasLaunched && !isEffectivelyHidden;
             }); 
 
             const updatesApps = releasedApps.filter(a => a.lastUpdated && (now - a.lastUpdated < 86400000)); 
@@ -536,9 +549,8 @@
             const dayNum = dateObj.getDate(); 
 
             const handleAppClick = (app) => { 
-                const isFuture = app.scheduledAt && now < app.scheduledAt;
-                const isEffectiveLocked = (app.isLocked || app.isSecret) && isFuture; 
-                if (isEffectiveLocked) { setLockedAppId(app.id); playSound('lock'); setTimeout(() => setLockedAppId(null), 500); return; } 
+                const isEffectivelySecret = !isAdmin && app.isSecret && (!app.scheduledAt || now < app.scheduledAt);
+                if (isEffectivelySecret) { setLockedAppId(app.id); playSound('lock'); setTimeout(() => setLockedAppId(null), 500); return; } 
                 onApp(app); 
             };
 
@@ -632,12 +644,13 @@
             );
         }
 
-        function CategorizedView({ title, categoryFilter, apps, onApp, themeMode, accentColor }) {
+        function CategorizedView({ title, categoryFilter, apps, onApp, themeMode, accentColor, isAdmin }) {
             const now = Date.now();
             const colors = THEMES[themeMode] || THEMES.amoled;
             const filtered = apps.filter(a => {
                 const hasLaunched = !a.scheduledAt || now >= a.scheduledAt;
-                return a.category === categoryFilter && hasLaunched;
+                const isEffectivelyHidden = a.isHidden && (!a.scheduledAt || now < a.scheduledAt);
+                return a.category === categoryFilter && hasLaunched && !isEffectivelyHidden;
             });
             return (
                 <div className={`view-animate ${colors.bg} min-h-screen pb-40 relative`}>
@@ -648,14 +661,14 @@
                         {filtered.length === 0 ? (
                             <div className={`text-center py-20 ${colors.subtext}`}>Nenhum item disponível.</div>
                         ) : filtered.map(app => (
-                            <AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode={themeMode} accentColor={accentColor} />
+                            <AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode={themeMode} accentColor={accentColor} isAdmin={isAdmin} />
                         ))}
                     </div>
                 </div>
             );
         }
         
-        function HiddenView({ apps, onApp, themeMode, accentColor }) {
+        function HiddenView({ apps, onApp, themeMode, accentColor, isAdmin }) {
             const now = Date.now();
             const colors = THEMES[themeMode] || THEMES.amoled;
             const filtered = apps.filter(a => a.isHidden || a.isSecret);
@@ -668,20 +681,23 @@
                         {filtered.length === 0 ? (
                             <div className={`text-center py-20 ${colors.subtext}`}>Nenhum app oculto encontrado.</div>
                         ) : filtered.map(app => (
-                            <AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode={themeMode} accentColor={accentColor} />
+                            <AppListItem key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode={themeMode} accentColor={accentColor} isAdmin={isAdmin} />
                         ))}
                     </div>
                 </div>
             );
         }
 
-        function SearchView({ apps, onApp, onProfile, profileImage, themeMode, accentColor }) { 
+        function SearchView({ apps, onApp, onProfile, profileImage, themeMode, accentColor, isAdmin }) { 
             const [query, setQuery] = useState(''); 
             const now = Date.now(); 
             const colors = THEMES[themeMode] || THEMES.amoled;
             const filtered = apps.filter(a => {
                 const hasLaunched = !a.scheduledAt || now >= a.scheduledAt;
-                return a.name.toLowerCase().includes(query.toLowerCase()) && hasLaunched;
+                const isEffectivelyHidden = a.isHidden && (!a.scheduledAt || now < a.scheduledAt);
+                const isEffectivelySecret = !isAdmin && a.isSecret && (!a.scheduledAt || now < a.scheduledAt);
+                const searchName = isEffectivelySecret ? "confidencial" : a.name.toLowerCase();
+                return searchName.includes(query.toLowerCase()) && hasLaunched && !isEffectivelyHidden;
             }); 
             
             return (
@@ -697,7 +713,7 @@
                             </div>
                         ) : (
                             filtered.map(app => (
-                                <SearchAppCard key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode={themeMode} accentColor={accentColor} />
+                                <SearchAppCard key={app.id} app={app} onClick={() => onApp(app)} now={now} themeMode={themeMode} accentColor={accentColor} isAdmin={isAdmin} />
                             ))
                         )}
                     </div>
@@ -1032,10 +1048,10 @@
 
                     <div className="flex-1 overflow-y-auto no-scrollbar relative">
                         {activeTab === 'today' && <TodayView key="today" apps={apps} highlights={highlights} quickAccess={quickAccess} onProfile={() => setShowProfile(true)} onSettings={() => setShowSettings(true)} onApp={setSelectedApp} onQuickAccess={handleQuickAccess} isAdmin={isAdmin} profileImage={profileImage} themeMode={theme} accentColor={accentColor} />}
-                        {activeTab === 'search' && <SearchView key="search" apps={apps} onApp={setSelectedApp} onProfile={() => setShowProfile(true)} profileImage={profileImage} themeMode={theme} accentColor={accentColor} />}
-                        {activeTab === 'games' && <CategorizedView title="Jogos" categoryFilter="Jogos" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
-                        {activeTab === 'apps' && <CategorizedView title="Apps" categoryFilter="Apps" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
-                        {activeTab === 'hidden' && isAdmin && <HiddenView key="hidden" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} />}
+                        {activeTab === 'search' && <SearchView key="search" apps={apps} onApp={setSelectedApp} onProfile={() => setShowProfile(true)} profileImage={profileImage} themeMode={theme} accentColor={accentColor} isAdmin={isAdmin} />}
+                        {activeTab === 'games' && <CategorizedView title="Jogos" categoryFilter="Jogos" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} isAdmin={isAdmin} />}
+                        {activeTab === 'apps' && <CategorizedView title="Apps" categoryFilter="Apps" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} isAdmin={isAdmin} />}
+                        {activeTab === 'hidden' && isAdmin && <HiddenView key="hidden" apps={apps} onApp={setSelectedApp} themeMode={theme} accentColor={accentColor} isAdmin={isAdmin} />}
                     </div>
 
                     <nav className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[94%] max-w-[440px] px-1 py-3 rounded-[35px] flex justify-between items-center z-50 ${colors.dock} transition-all duration-300`}>
@@ -1046,8 +1062,8 @@
                         {isAdmin && <TabButton active={activeTab === 'hidden'} icon="EyeOff" label="Ocultos" onClick={() => setActiveTab('hidden')} themeMode={theme} accentColor={accentColor} />}
                     </nav>
 
-                    {selectedApp && <AppDetail app={selectedApp} onClose={() => setSelectedApp(null)} themeMode={theme} accentColor={accentColor} />}
-                    {selectedCollection && <CollectionModal collection={selectedCollection} apps={apps} onClose={() => setSelectedCollection(null)} onApp={setSelectedApp} accentColor={accentColor} />}
+                    {selectedApp && <AppDetail app={selectedApp} onClose={() => setSelectedApp(null)} themeMode={theme} accentColor={accentColor} isAdmin={isAdmin} />}
+                    {selectedCollection && <CollectionModal collection={selectedCollection} apps={apps} onClose={() => setSelectedCollection(null)} onApp={setSelectedApp} accentColor={accentColor} isAdmin={isAdmin} />}
                     
                     {showSettings && (
                         <SettingsModal 
